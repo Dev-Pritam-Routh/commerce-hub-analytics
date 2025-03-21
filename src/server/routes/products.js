@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const User = require('../models/User');
 
@@ -254,8 +255,12 @@ router.get('/seller/stats', auth, sellerOrAdmin, async (req, res) => {
   try {
     const totalProducts = await Product.countDocuments({ seller: req.user.userId });
     const totalActiveProducts = await Product.countDocuments({ seller: req.user.userId, status: 'active' });
+    
+    // Convert string ID to ObjectId for MongoDB aggregation
+    const sellerId = mongoose.Types.ObjectId(req.user.userId);
+    
     const totalStock = await Product.aggregate([
-      { $match: { seller: mongoose.Types.ObjectId(req.user.userId) } },
+      { $match: { seller: sellerId } },
       { $group: { _id: null, total: { $sum: '$stock' } } }
     ]);
     

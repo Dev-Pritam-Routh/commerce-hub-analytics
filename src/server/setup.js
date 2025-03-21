@@ -5,11 +5,14 @@ const Product = require('./models/Product');
 const Order = require('./models/Order');
 const bcrypt = require('bcryptjs');
 
+// MongoDB connection string
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce';
+
 // Sample data for initial setup
 const setupDatabase = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect('mongodb://localhost:27017/ecommerce', {
+    await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
@@ -27,7 +30,7 @@ const setupDatabase = async () => {
     const adminPassword = await bcrypt.hash('admin1234', 10);
     const admin = await User.create({
       name: 'Admin',
-      email: 'pritamrouth20032gmail.com',
+      email: 'pritamrouth2003@gmail.com',
       password: adminPassword,
       role: 'admin'
     });

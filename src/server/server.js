@@ -19,9 +19,11 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 
 // Database connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce';
+
 const connectDB = async () => {
   try {
-    await mongoose.connect('mongodb://localhost:27017/ecommerce', {
+    await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

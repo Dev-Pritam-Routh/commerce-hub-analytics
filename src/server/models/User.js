@@ -65,7 +65,7 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 // Create a default admin account if not exists
 UserSchema.statics.createDefaultAdmin = async function() {
   try {
-    const adminEmail = 'pritamrouth20032gmail.com';
+    const adminEmail = 'pritamrouth2003@gmail.com';
     const admin = await this.findOne({ email: adminEmail });
     
     if (!admin) {

@@ -1,7 +1,10 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
+
+// Configure axios defaults
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '/api';
 
 interface User {
   id: string;
@@ -47,7 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        const res = await axios.get('/api/auth/me');
+        const res = await axios.get('/auth/me');
         if (res.data.success) {
           setUser(res.data.user);
           setIsAuthenticated(true);
@@ -75,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const res = await axios.post('/api/auth/login', { email, password });
+      const res = await axios.post('/auth/login', { email, password });
       
       if (res.data.success) {
         const { token, user } = res.data;
@@ -83,11 +86,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(token);
         setUser(user);
         setIsAuthenticated(true);
-        toast.success('Login successful!');
+        toast({
+          title: "Login successful!",
+          description: `Welcome back, ${user.name}!`,
+        });
       }
     } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed. Please try again.';
-      toast.error(message);
+      toast({
+        title: "Login failed",
+        description: message,
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -98,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string, role = 'user') => {
     try {
       setIsLoading(true);
-      const res = await axios.post('/api/auth/register', { name, email, password, role });
+      const res = await axios.post('/auth/register', { name, email, password, role });
       
       if (res.data.success) {
         const { token, user } = res.data;
@@ -106,11 +116,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(token);
         setUser(user);
         setIsAuthenticated(true);
-        toast.success('Registration successful!');
+        toast({
+          title: "Registration successful!",
+          description: `Welcome to CommerceHub, ${user.name}!`,
+        });
       }
     } catch (error: any) {
       const message = error.response?.data?.message || 'Registration failed. Please try again.';
-      toast.error(message);
+      toast({
+        title: "Registration failed",
+        description: message,
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -123,7 +140,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    toast.success('Logged out successfully');
+    toast({
+      title: "Logged out successfully",
+    });
   };
 
   // Update user function
@@ -132,15 +151,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       if (!user) throw new Error('User not authenticated');
       
-      const res = await axios.put(`/api/users/${user.id}`, userData);
+      const res = await axios.put(`/users/${user.id}`, userData);
       
       if (res.data.success) {
         setUser({ ...user, ...res.data.user });
-        toast.success('Profile updated successfully');
+        toast({
+          title: "Profile updated successfully",
+        });
       }
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to update profile';
-      toast.error(message);
+      toast({
+        title: "Update failed",
+        description: message,
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoading(false);
