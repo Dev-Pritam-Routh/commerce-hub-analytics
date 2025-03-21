@@ -6,7 +6,7 @@ import Order from './models/Order.js';
 import bcrypt from 'bcrypt.js';
 
 // MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce';
+const MONGODB_URI = "mongodb+srv://pritamrouth2003:Prit@m#Routh2003@cluster0.unme7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 // Sample data for initial setup
 const setupDatabase = async () => {
