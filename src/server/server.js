@@ -8,11 +8,17 @@ const User = require('./models/User');
 // Initialize the Express application
 const app = express();
 
-// Middleware
-app.use(cors());
+// Configure CORS to allow requests from frontend
+app.use(cors({
+  origin: '*', // Allow all origins in development
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'x-auth-token']
+}));
+
+// Parse JSON bodies
 app.use(express.json());
 
-// API Routes
+// API Routes - make sure all routes are prefixed with /api
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/products', require('./routes/products'));
@@ -61,4 +67,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`API available at http://localhost:${PORT}/api`);
 });

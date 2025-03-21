@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { motion } from 'framer-motion';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -13,6 +14,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,13 +24,15 @@ const LoginPage = () => {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     
     try {
       setLoading(true);
       await login(email, password);
       navigate(from, { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      setError(error.response?.data?.message || 'Failed to log in. Please check your credentials and try again.');
       setLoading(false);
     }
   };
@@ -49,6 +53,12 @@ const LoginPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -92,6 +102,10 @@ const LoginPage = () => {
               >
                 {loading ? <LoadingSpinner size="sm" /> : 'Sign In'}
               </Button>
+              
+              <div className="text-xs text-center text-muted-foreground">
+                <p>Admin login: pritamrouth2003@gmail.com / admin1234</p>
+              </div>
             </form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">

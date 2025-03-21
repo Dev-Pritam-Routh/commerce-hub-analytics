@@ -65,17 +65,23 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 // Create a default admin account if not exists
 UserSchema.statics.createDefaultAdmin = async function() {
   try {
+    // Fix: Make sure the email is correct with @ symbol
     const adminEmail = 'pritamrouth2003@gmail.com';
+    console.log('Checking for admin account with email:', adminEmail);
+    
     const admin = await this.findOne({ email: adminEmail });
     
     if (!admin) {
+      console.log('Creating default admin account with email:', adminEmail);
       await this.create({
         name: 'Admin',
         email: adminEmail,
         password: 'admin1234',
         role: 'admin'
       });
-      console.log('Default admin account created');
+      console.log('Default admin account created successfully');
+    } else {
+      console.log('Admin account already exists');
     }
   } catch (error) {
     console.error('Error creating default admin:', error);

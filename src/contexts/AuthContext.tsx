@@ -3,8 +3,12 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import axios from 'axios';
 import { toast } from '@/components/ui/use-toast';
 
-// Configure axios defaults
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '/api';
+// Configure axios defaults - ensure we're using the correct API base URL
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+// Set default base URL for all axios requests
+axios.defaults.baseURL = API_URL;
+axios.defaults.withCredentials = false; // No need for credentials for this API
 
 interface User {
   id: string;
@@ -50,11 +54,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
+        console.log('Loading user with token:', token);
         const res = await axios.get('/auth/me');
-        if (res.data.success) {
-          setUser(res.data.user);
+        console.log('Auth response:', res.data);
+        
+        if (res.data && res.data.user) {
+          setUser({
+            id: res.data.user._id,
+            name: res.data.user.name,
+            email: res.data.user.email,
+            role: res.data.user.role
+          });
           setIsAuthenticated(true);
         } else {
+          console.error('Invalid user data returned:', res.data);
           setToken(null);
           setUser(null);
           setIsAuthenticated(false);
@@ -78,20 +91,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const res = await axios.post('/auth/login', { email, password });
+      console.log('Logging in user:', email);
+      console.log('API URL:', axios.defaults.baseURL);
       
-      if (res.data.success) {
+      const res = await axios.post('/auth/login', { email, password });
+      console.log('Login response:', res.data);
+      
+      if (res.data && res.data.success) {
         const { token, user } = res.data;
         localStorage.setItem('token', token);
         setToken(token);
-        setUser(user);
+        setUser({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        });
         setIsAuthenticated(true);
         toast({
           title: "Login successful!",
           description: `Welcome back, ${user.name}!`,
         });
+      } else {
+        throw new Error(res.data?.message || 'Login failed');
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       const message = error.response?.data?.message || 'Login failed. Please try again.';
       toast({
         title: "Login failed",
@@ -108,20 +133,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string, role = 'user') => {
     try {
       setIsLoading(true);
-      const res = await axios.post('/auth/register', { name, email, password, role });
+      console.log('Registering user:', email, 'with role:', role);
       
-      if (res.data.success) {
+      const res = await axios.post('/auth/register', { name, email, password, role });
+      console.log('Register response:', res.data);
+      
+      if (res.data && res.data.success) {
         const { token, user } = res.data;
         localStorage.setItem('token', token);
         setToken(token);
-        setUser(user);
+        setUser({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        });
         setIsAuthenticated(true);
         toast({
           title: "Registration successful!",
           description: `Welcome to CommerceHub, ${user.name}!`,
         });
+      } else {
+        throw new Error(res.data?.message || 'Registration failed');
       }
     } catch (error: any) {
+      console.error('Registration error:', error);
       const message = error.response?.data?.message || 'Registration failed. Please try again.';
       toast({
         title: "Registration failed",
@@ -153,13 +189,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       const res = await axios.put(`/users/${user.id}`, userData);
       
-      if (res.data.success) {
+      if (res.data && res.data.success) {
         setUser({ ...user, ...res.data.user });
         toast({
           title: "Profile updated successfully",
         });
+      } else {
+        throw new Error(res.data?.message || 'Failed to update profile');
       }
     } catch (error: any) {
+      console.error('Update user error:', error);
       const message = error.response?.data?.message || 'Failed to update profile';
       toast({
         title: "Update failed",
