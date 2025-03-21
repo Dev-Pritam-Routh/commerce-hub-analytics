@@ -1,9 +1,9 @@
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import Order from '../models/Order.js';
+import Product from '../models/Product.js';
 
-const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const Order = require('../models/Order');
-const Product = require('../models/Product');
 
 // JWT Secret
 const JWT_SECRET = 'ecommerce-app-secret';
@@ -334,4 +334,4 @@ router.get('/stats/seller', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

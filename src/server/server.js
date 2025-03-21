@@ -1,9 +1,18 @@
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
-const User = require('./models/User');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import User from './models/User.js';
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
+import productRoutes from './routes/products.js';
+import orderRoutes from './routes/orders.js';
+
+// Get directory name in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize the Express application
 const app = express();
@@ -19,10 +28,10 @@ app.use(cors({
 app.use(express.json());
 
 // API Routes - make sure all routes are prefixed with /api
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/orders', require('./routes/orders'));
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Database connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce';
