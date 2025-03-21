@@ -1,9 +1,9 @@
 
-const mongoose = require('mongoose');
-const User = require('./models/User');
-const Product = require('./models/Product');
-const Order = require('./models/Order');
-const bcrypt = require('bcryptjs');
+import mongoose from 'mongoose';
+import User from './models/User.js';
+import Product from './models/Product.js';
+import Order from './models/Order.js';
+import bcrypt from 'bcrypt.js';
 
 // MongoDB connection string
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce';
