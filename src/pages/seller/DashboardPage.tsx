@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StatsCard from '@/components/ui/StatsCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { cn } from '@/lib/utils';
 import { 
   Package, 
   DollarSign, 
