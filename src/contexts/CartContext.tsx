@@ -1,6 +1,5 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner'; // Make sure to import Toaster if not already imported
 
 interface CartProduct {
   id: string;
@@ -39,7 +38,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addToCart = (product: CartProduct) => {
     if (!product.sellerId) {
       console.error('Product missing seller ID', product);
-      toast.error('Unable to add product to cart: Missing seller information');
+      toast.error('Unable to add product to cart: Missing seller information', {
+        dismissible: true, // Make toast dismissible
+      });
       return;
     }
     
@@ -52,7 +53,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const newQuantity = existingProduct.quantity + product.quantity;
         
         if (newQuantity > product.stock) {
-          toast.error(`Sorry, only ${product.stock} items available in stock`);
+          toast.error(`Sorry, only ${product.stock} items available in stock`, {
+            dismissible: true,
+          });
           return prevCart;
         }
         
@@ -61,15 +64,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           quantity: newQuantity
         };
         
-        toast.success(`Updated quantity for ${product.name} in cart`);
+        toast.success(`Updated quantity for ${product.name} in cart`, {
+          dismissible: true,
+        });
         return updatedCart;
       } else {
         if (product.quantity > product.stock) {
-          toast.error(`Sorry, only ${product.stock} items available in stock`);
+          toast.error(`Sorry, only ${product.stock} items available in stock`, {
+            dismissible: true,
+          });
           return prevCart;
         }
         
-        toast.success(`Added ${product.name} to cart`);
+        toast.success(`Added ${product.name} to cart`, {
+          dismissible: true,
+        });
         return [...prevCart, product];
       }
     });
@@ -80,7 +89,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setCart(prevCart => {
       const product = prevCart.find(item => item.id === productId);
       if (product) {
-        toast.success(`Removed ${product.name} from cart`);
+        toast.success(`Removed ${product.name} from cart`, {
+          dismissible: true,
+        });
       }
       return prevCart.filter(item => item.id !== productId);
     });
@@ -96,12 +107,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const product = prevCart[productIndex];
       
       if (quantity > product.stock) {
-        toast.error(`Sorry, only ${product.stock} items available in stock`);
+        toast.error(`Sorry, only ${product.stock} items available in stock`, {
+          dismissible: true,
+        });
         return prevCart;
       }
       
       if (quantity <= 0) {
-        toast.success(`Removed ${product.name} from cart`);
+        toast.success(`Removed ${product.name} from cart`, {
+          dismissible: true,
+        });
         return prevCart.filter(item => item.id !== productId);
       }
       
@@ -118,7 +133,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   // Clear cart
   const clearCart = () => {
     setCart([]);
-    toast.success('Cart cleared');
+    toast.success('Cart cleared', {
+      dismissible: true,
+    });
   };
   
   // Calculate total items in cart
@@ -137,7 +154,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     subtotal
   };
   
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      {/* If you need to customize the Toaster component, add it here */}
+      <Toaster closeButton={true} />
+    </CartContext.Provider>
+  );
 };
 
 export const useCart = () => {

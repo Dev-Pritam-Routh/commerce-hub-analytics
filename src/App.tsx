@@ -54,7 +54,7 @@ const App = () => (
     <AuthProvider>
       <CartProvider>
         <TooltipProvider>
-          <Toaster />
+          <Toaster closeButton={true} richColors />
           <Sonner position="top-right" />
           <BrowserRouter>
             <Routes>

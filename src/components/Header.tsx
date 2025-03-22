@@ -128,7 +128,7 @@ const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   
-                  {(user?.role === 'seller' || user?.role === 'admin') && (
+                  {(user?.role === 'seller') && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Seller Dashboard</DropdownMenuLabel>
@@ -172,6 +172,13 @@ const Header = () => {
                         <Link to="/admin/users" className="cursor-pointer">
                           <Users className="mr-2 h-4 w-4" />
                           <span>Users</span>
+                        </Link>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/sellers" className="cursor-pointer">
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>Sellers</span>
                         </Link>
                       </DropdownMenuItem>
                       
