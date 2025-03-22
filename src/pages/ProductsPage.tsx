@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +20,27 @@ import { Search, Filter, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllProducts } from '@/services/productService';
+
+// Define the missing constants
+const categories = [
+  'Electronics',
+  'Clothing',
+  'Home',
+  'Books',
+  'Beauty',
+  'Toys',
+  'Sports',
+  'Food',
+  'Other'
+];
+
+const sortOptions = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_low', label: 'Price: Low to High' },
+  { value: 'price_high', label: 'Price: High to Low' },
+  { value: 'popular', label: 'Most Popular' },
+  { value: 'rating', label: 'Highest Rated' }
+];
 
 const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
