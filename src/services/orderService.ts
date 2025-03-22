@@ -106,8 +106,48 @@ export const getOrderById = async (id: string, token: string) => {
   }
 };
 
+// Get seller orders
+export const getSellerOrders = async (token: string) => {
+  try {
+    console.log("Fetching seller orders");
+    setAuthToken(token);
+    const response = await axios.get('/orders/seller/orders');
+    setAuthToken(null);
+    console.log("Seller orders response:", response.data);
+    return response.data.orders;
+  } catch (error) {
+    console.error('Error fetching seller orders:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Update order status
+export const updateOrderStatus = async (id: string, status: string, token: string) => {
+  try {
+    console.log(`Updating order ${id} status to ${status}`);
+    setAuthToken(token);
+    const response = await axios.put(`/orders/${id}/status`, { status });
+    setAuthToken(null);
+    console.log("Order status update response:", response.data);
+    return response.data.order;
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
 export default {
   createOrder,
   getUserOrders,
-  getOrderById
+  getOrderById,
+  getSellerOrders,
+  updateOrderStatus
 };
