@@ -70,8 +70,12 @@ export const getFeaturedProducts = async () => {
 };
 
 // Get product by ID
+// Get product by ID
 export const getProductById = async (id: string) => {
   try {
+    if (!id) {
+      throw new Error('Product ID is required');
+    }
     console.log(`Fetching product with ID: ${id}`);
     const response = await axios.get(`/products/${id}`);
     console.log("Product details response:", response.data);
@@ -81,6 +85,7 @@ export const getProductById = async (id: string) => {
     throw error;
   }
 };
+
 
 // Add a new product (requires authentication)
 export const addProduct = async (productData: Product, token: string) => {

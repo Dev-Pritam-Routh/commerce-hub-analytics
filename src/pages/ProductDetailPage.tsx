@@ -17,11 +17,19 @@ const ProductDetailPage = () => {
   const { isAuthenticated } = useAuth();
   const [quantity, setQuantity] = useState(1);
   
+  // Update the useQuery implementation
+  // Update the useQuery implementation to properly handle the case when id is undefined
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => getProductById(id || ''),
-    enabled: !!id
+    queryFn: () => {
+      if (!id) {
+        throw new Error('Product ID is missing');
+      }
+      return getProductById(id);
+    },
+    enabled: !!id // This is the key fix - only run the query when id exists
   });
+
   
   const handleAddToCart = () => {
     if (!isAuthenticated) {
@@ -147,7 +155,11 @@ const ProductDetailPage = () => {
               <span className="font-semibold">Category:</span> {product.category}
             </p>
             <p className="mb-4">
-              <span className="font-semibold">Seller:</span> {product.seller.name}
+              <span className="font-semibold">Seller:</span> {
+                typeof product.seller === 'object' && product.seller.name 
+                  ? product.seller.name 
+                  : 'Seller information unavailable'
+              }
             </p>
             <p className="mb-4">
               <span className="font-semibold">Availability:</span> {" "}

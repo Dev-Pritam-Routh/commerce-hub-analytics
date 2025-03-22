@@ -474,8 +474,11 @@ const ProductsPage = () => {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
               >
-                {products?.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                {products?.map((product, index) => (
+                  <ProductCard 
+                    key={product.id || product._id || `product-${index}`} 
+                    product={product} 
+                  />
                 ))}
               </motion.div>
             )}
