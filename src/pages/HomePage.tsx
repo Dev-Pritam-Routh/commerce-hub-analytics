@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 
 const fetchFeaturedProducts = async () => {
   try {
-    const response = await axios.get('/api/products?featured=true');
+    const response = await axios.get('/products?featured=true');
     return response.data.products;
   } catch (error) {
     console.error('Error fetching featured products:', error);

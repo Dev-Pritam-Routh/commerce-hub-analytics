@@ -35,7 +35,7 @@ const fetchProducts = async ({
   sort?: string;
 }) => {
   try {
-    let url = '/api/products?';
+    let url = '/products?';
     
     if (search) url += `search=${search}&`;
     if (category) url += `category=${category}&`;
