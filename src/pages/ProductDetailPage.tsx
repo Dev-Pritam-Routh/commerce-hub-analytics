@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -89,7 +88,7 @@ const ProductDetailPage = () => {
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
+      <div className="flex justify-center items-center min-h-[calc(100vh-200px)] pt-24">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -97,7 +96,7 @@ const ProductDetailPage = () => {
   
   if (error || !product) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-24">
         <div className="text-center py-12">
           <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
           <p className="text-gray-500 mb-6">The product you're looking for doesn't exist or has been removed.</p>
@@ -119,7 +118,7 @@ const ProductDetailPage = () => {
     : 'Seller information unavailable';
   
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 mt-24">
       <Button 
         variant="ghost" 
         className="mb-4" 
@@ -291,5 +290,6 @@ const ProductDetailPage = () => {
     </div>
   );
 };
+
 
 export default ProductDetailPage;

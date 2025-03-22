@@ -62,7 +62,16 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				gold: {
+					light: '#F5D76E', // Light gold color
+					DEFAULT: '#D4AF37', // Standard gold color
+					dark: '#B8860B',   // Dark gold color
+				  },
+			},
+			boxShadow: {
+				'gold': '0 0 15px rgba(212, 175, 55, 0.5)',
+				'gold-md': '0 0 10px rgba(212, 175, 55, 0.3)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

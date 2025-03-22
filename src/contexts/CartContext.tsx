@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { toast, Toaster } from 'sonner'; // Make sure to import Toaster if not already imported
+import { toast, Toaster } from 'sonner';
 
 interface CartProduct {
   id: string;
@@ -23,6 +23,11 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Configure toast defaults
+toast.defaultConfig = {
+  dismissible: true,
+};
+
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartProduct[]>(() => {
     const savedCart = localStorage.getItem('cart');
@@ -38,9 +43,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addToCart = (product: CartProduct) => {
     if (!product.sellerId) {
       console.error('Product missing seller ID', product);
-      toast.error('Unable to add product to cart: Missing seller information', {
-        dismissible: true, // Make toast dismissible
-      });
+      toast.error('Unable to add product to cart: Missing seller information');
       return;
     }
     
@@ -53,9 +56,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const newQuantity = existingProduct.quantity + product.quantity;
         
         if (newQuantity > product.stock) {
-          toast.error(`Sorry, only ${product.stock} items available in stock`, {
-            dismissible: true,
-          });
+          toast.error(`Sorry, only ${product.stock} items available in stock`);
           return prevCart;
         }
         
@@ -64,21 +65,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           quantity: newQuantity
         };
         
-        toast.success(`Updated quantity for ${product.name} in cart`, {
-          dismissible: true,
-        });
+        toast.success(`Updated quantity for ${product.name} in cart`);
         return updatedCart;
       } else {
         if (product.quantity > product.stock) {
-          toast.error(`Sorry, only ${product.stock} items available in stock`, {
-            dismissible: true,
-          });
+          toast.error(`Sorry, only ${product.stock} items available in stock`);
           return prevCart;
         }
         
-        toast.success(`Added ${product.name} to cart`, {
-          dismissible: true,
-        });
+        toast.success(`Added ${product.name} to cart`);
         return [...prevCart, product];
       }
     });
@@ -89,9 +84,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setCart(prevCart => {
       const product = prevCart.find(item => item.id === productId);
       if (product) {
-        toast.success(`Removed ${product.name} from cart`, {
-          dismissible: true,
-        });
+        toast.success(`Removed ${product.name} from cart`);
       }
       return prevCart.filter(item => item.id !== productId);
     });
@@ -107,16 +100,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const product = prevCart[productIndex];
       
       if (quantity > product.stock) {
-        toast.error(`Sorry, only ${product.stock} items available in stock`, {
-          dismissible: true,
-        });
+        toast.error(`Sorry, only ${product.stock} items available in stock`);
         return prevCart;
       }
       
       if (quantity <= 0) {
-        toast.success(`Removed ${product.name} from cart`, {
-          dismissible: true,
-        });
+        toast.success(`Removed ${product.name} from cart`);
         return prevCart.filter(item => item.id !== productId);
       }
       
@@ -133,9 +122,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   // Clear cart
   const clearCart = () => {
     setCart([]);
-    toast.success('Cart cleared', {
-      dismissible: true,
-    });
+    toast.success('Cart cleared');
   };
   
   // Calculate total items in cart
@@ -157,7 +144,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   return (
     <CartContext.Provider value={value}>
       {children}
-      {/* If you need to customize the Toaster component, add it here */}
       <Toaster closeButton={true} />
     </CartContext.Provider>
   );
