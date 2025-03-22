@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner'; // Remove Toaster import from here
 
 interface CartProduct {
   id: string;
@@ -22,11 +22,6 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
-// Configure toast defaults
-toast.defaultConfig = {
-  dismissible: true,
-};
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartProduct[]>(() => {
@@ -144,7 +139,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   return (
     <CartContext.Provider value={value}>
       {children}
-      <Toaster closeButton={true} />
+      {/* Remove the Toaster component from here */}
     </CartContext.Provider>
   );
 };
