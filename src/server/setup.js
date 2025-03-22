@@ -3,10 +3,14 @@ import mongoose from 'mongoose';
 import User from './models/User.js';
 import Product from './models/Product.js';
 import Order from './models/Order.js';
-import bcrypt from 'bcrypt.js';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 
-// MongoDB connection string
-const MONGODB_URI = "mongodb+srv://pritamrouth2003:Prit@m#Routh2003@cluster0.unme7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// Load environment variables
+dotenv.config();
+
+// MongoDB connection string from environment or fallback
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=Cluster0";
 
 // Sample data for initial setup
 const setupDatabase = async () => {

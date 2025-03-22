@@ -9,6 +9,10 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Get directory name in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -33,8 +37,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 
-// Database connection
-const MONGODB_URI = "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// Database connection - use environment variable or fallback to hardcoded string
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=Cluster0";
 
 const connectDB = async () => {
   try {
