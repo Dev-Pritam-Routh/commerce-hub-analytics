@@ -42,10 +42,7 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pritamrouth2003:FU
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(MONGODB_URI);
     console.log('MongoDB connected successfully');
     
     // Create default admin account
@@ -57,6 +54,15 @@ const connectDB = async () => {
 };
 
 connectDB();
+
+// Handle 404 errors for API routes
+app.use('/api/*', (req, res) => {
+  console.log(`Route not found: ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    message: `API route not found: ${req.originalUrl}`
+  });
+});
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

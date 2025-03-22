@@ -4,16 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
+import { addProduct } from '@/services/productService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const SellerAddProductPage = () => {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [product, setProduct] = useState({
     name: '',
     description: '',
     category: '',
     price: '',
     stock: '',
-    imageUrl: '',
+    images: ['https://placehold.co/600x400?text=Product+Image'],
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +26,7 @@ const SellerAddProductPage = () => {
     setProduct({ ...product, [name]: value });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
@@ -38,18 +41,38 @@ const SellerAddProductPage = () => {
     
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const productData = {
+        ...product,
+        price: parseFloat(product.price),
+        stock: parseInt(product.stock),
+      };
+      
+      console.log("Submitting product:", productData);
+      
+      const result = await addProduct(productData, token || '');
+      
+      console.log("Product creation result:", result);
+      
       toast({
         title: "Success",
         description: "Product has been created successfully.",
       });
-      setIsSubmitting(false);
+      
       navigate('/seller/products');
-    }, 1000);
+    } catch (error) {
+      console.error("Error creating product:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
-  const categories = ['Electronics', 'Accessories', 'Clothing', 'Home', 'Beauty'];
+  const categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Beauty', 'Toys', 'Sports', 'Food', 'Other'];
   
   return (
     <div className="px-4 py-6 max-w-4xl mx-auto">

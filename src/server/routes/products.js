@@ -1,13 +1,18 @@
+
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const router = express.Router();
 
-// JWT Secret
-const JWT_SECRET = 'ecommerce-app-secret';
+// JWT Secret from environment variables
+const JWT_SECRET = process.env.JWT_SECRET || 'ecommerce-app-secret';
 
 // Middleware to check authentication
 const auth = (req, res, next) => {
@@ -22,6 +27,7 @@ const auth = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
+    console.error('Token verification error:', error);
     res.status(401).json({ success: false, message: 'Token is not valid' });
   }
 };
@@ -118,7 +124,19 @@ router.get('/:id', async (req, res) => {
 // Create a product (seller only)
 router.post('/', auth, sellerOrAdmin, async (req, res) => {
   try {
+    console.log('Creating product, received data:', req.body);
+    console.log('User from token:', req.user);
+    
     const { name, description, price, discountedPrice, category, images, stock, featured } = req.body;
+    
+    if (!name || !description || !price || !category || !images || images.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields',
+        required: ['name', 'description', 'price', 'category', 'images'],
+        received: Object.keys(req.body)
+      });
+    }
     
     const newProduct = new Product({
       name,
@@ -127,17 +145,20 @@ router.post('/', auth, sellerOrAdmin, async (req, res) => {
       discountedPrice: discountedPrice || price,
       category,
       images,
-      stock,
+      stock: stock || 0,
       featured: featured || false,
       seller: req.user.userId
     });
     
+    console.log('Creating new product:', newProduct);
+    
     const product = await newProduct.save();
+    console.log('Product saved successfully:', product);
     
     res.status(201).json({ success: true, product });
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 

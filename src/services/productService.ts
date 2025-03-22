@@ -46,6 +46,7 @@ export const getAllProducts = async (filters: Record<string, any> = {}) => {
     
     const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
     const response = await axios.get(`/products${queryString}`);
+    console.log("API Response:", response.data);
     return response.data.products;
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -78,12 +79,14 @@ export const getProductById = async (id: string) => {
 // Add a new product (requires authentication)
 export const addProduct = async (productData: Product, token: string) => {
   try {
+    console.log("Adding product with token:", token ? "Token exists" : "No token");
     setAuthToken(token);
     const response = await axios.post('/products', productData);
     setAuthToken(null);
     return response.data.product;
   } catch (error) {
     console.error('Error adding product:', error);
+    setAuthToken(null);
     throw error;
   }
 };
@@ -97,6 +100,7 @@ export const updateProduct = async (id: string, productData: Partial<Product>, t
     return response.data.product;
   } catch (error) {
     console.error('Error updating product:', error);
+    setAuthToken(null);
     throw error;
   }
 };
@@ -110,6 +114,7 @@ export const deleteProduct = async (id: string, token: string) => {
     return response.data;
   } catch (error) {
     console.error('Error deleting product:', error);
+    setAuthToken(null);
     throw error;
   }
 };
@@ -123,6 +128,7 @@ export const getSellerProducts = async (token: string) => {
     return response.data.products;
   } catch (error) {
     console.error('Error fetching seller products:', error);
+    setAuthToken(null);
     throw error;
   }
 };
