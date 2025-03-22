@@ -9,14 +9,14 @@ import { useState } from 'react';
 
 interface ProductCardProps {
   product: {
-    id: string;
+    _id: string;
     name: string;
     price: number;
     discountedPrice?: number;
     images: string[];
     averageRating: number;
     stock: number;
-    sellerId: string;
+    seller: string | { _id: string; name: string };
   };
   className?: string;
 }
@@ -26,14 +26,17 @@ const ProductCard = ({ product, className }: ProductCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   
   const handleAddToCart = () => {
+    // Extract seller ID from product data
+    const sellerId = typeof product.seller === 'object' ? product.seller._id : product.seller;
+    
     addToCart({
-      id: product.id,
+      id: product._id,
       name: product.name,
       price: product.discountedPrice || product.price,
       image: product.images[0],
       quantity: 1,
       stock: product.stock,
-      sellerId: product.sellerId
+      sellerId: sellerId
     });
   };
   
@@ -52,7 +55,7 @@ const ProductCard = ({ product, className }: ProductCardProps) => {
         className
       )}
     >
-      <Link to={`/products/${product.id}`} className="block relative">
+      <Link to={`/products/${product._id}`} className="block relative">
         <div className="aspect-[4/3] bg-slate-100 dark:bg-slate-800 w-full relative overflow-hidden">
           <img
             src={product.images[0]}

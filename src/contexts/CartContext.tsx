@@ -37,6 +37,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   
   // Add product to cart
   const addToCart = (product: CartProduct) => {
+    if (!product.sellerId) {
+      console.error('Product missing seller ID', product);
+      toast.error('Unable to add product to cart: Missing seller information');
+      return;
+    }
+    
     setCart(prevCart => {
       const existingProductIndex = prevCart.findIndex(item => item.id === product.id);
       

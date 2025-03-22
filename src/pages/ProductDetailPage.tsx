@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -15,9 +17,9 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
+  const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   
-  // Update the useQuery implementation
   // Update the useQuery implementation to properly handle the case when id is undefined
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
@@ -42,12 +44,43 @@ const ProductDetailPage = () => {
       return;
     }
     
+    if (!product) {
+      toast({
+        title: "Error",
+        description: "Product information not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Extract seller ID from product data
+    const sellerId = typeof product.seller === 'object' && product.seller._id 
+      ? product.seller._id 
+      : (typeof product.seller === 'string' ? product.seller : '');
+    
+    if (!sellerId) {
+      toast({
+        title: "Error",
+        description: "Seller information not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    addToCart({
+      id: product._id,
+      name: product.name,
+      price: product.discountedPrice || product.price,
+      image: product.images[0],
+      quantity: quantity,
+      stock: product.stock,
+      sellerId: sellerId
+    });
+    
     toast({
       title: "Added to cart",
       description: `${quantity} ${quantity > 1 ? 'items' : 'item'} added to your cart`,
     });
-    
-    // Logic to add to cart will be implemented with CartContext
   };
   
   const handleQuantityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -79,6 +112,11 @@ const ProductDetailPage = () => {
   const isDiscounted = product.discountedPrice && product.discountedPrice < product.price;
   const displayPrice = isDiscounted ? product.discountedPrice : product.price;
   const discount = isDiscounted ? Math.round((1 - product.discountedPrice / product.price) * 100) : 0;
+  
+  // Extract seller information
+  const sellerName = typeof product.seller === 'object' && product.seller.name 
+    ? product.seller.name 
+    : 'Seller information unavailable';
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -132,7 +170,7 @@ const ProductDetailPage = () => {
               ))}
             </div>
             <span className="text-sm text-gray-600">
-              {product.averageRating.toFixed(1)} ({product.ratings.length} reviews)
+              {product.averageRating.toFixed(1)} ({product.ratings?.length || 0} reviews)
             </span>
           </div>
           
@@ -155,11 +193,7 @@ const ProductDetailPage = () => {
               <span className="font-semibold">Category:</span> {product.category}
             </p>
             <p className="mb-4">
-              <span className="font-semibold">Seller:</span> {
-                typeof product.seller === 'object' && product.seller.name 
-                  ? product.seller.name 
-                  : 'Seller information unavailable'
-              }
+              <span className="font-semibold">Seller:</span> {sellerName}
             </p>
             <p className="mb-4">
               <span className="font-semibold">Availability:</span> {" "}
@@ -209,14 +243,18 @@ const ProductDetailPage = () => {
       <div className="mt-12">
         <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
         
-        {product.ratings.length === 0 ? (
+        {!product.ratings || product.ratings.length === 0 ? (
           <p className="text-gray-500">No reviews yet. Be the first to review this product!</p>
         ) : (
           <div className="space-y-6">
             {product.ratings.map((rating, index) => (
               <Card key={index} className="p-4">
                 <div className="flex justify-between mb-2">
-                  <div className="font-medium">{rating.user.name}</div>
+                  <div className="font-medium">
+                    {typeof rating.user === 'object' && rating.user.name 
+                      ? rating.user.name 
+                      : 'Anonymous'}
+                  </div>
                   <div className="text-sm text-gray-500">
                     {new Date(rating.date).toLocaleDateString()}
                   </div>
@@ -244,7 +282,7 @@ const ProductDetailPage = () => {
         ) : (
           <div className="mt-8 text-center">
             <p className="text-gray-500 mb-2">Please sign in to write a review</p>
-            <Button onClick={() => navigate('/login', { state: { from: `/product/${id}` } })}>
+            <Button onClick={() => navigate('/login', { state: { from: `/product/${product._id}` } })}>
               Sign In
             </Button>
           </div>

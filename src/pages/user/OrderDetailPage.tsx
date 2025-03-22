@@ -1,88 +1,26 @@
 
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useQuery } from '@tanstack/react-query';
+import { getOrderById } from '@/services/orderService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Package, Truck, CheckCircle, AlertCircle } from 'lucide-react';
-
-interface Product {
-  product: {
-    _id: string;
-    name: string;
-    images: string[];
-  };
-  quantity: number;
-  price: number;
-}
-
-interface ShippingAddress {
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-}
-
-interface Order {
-  _id: string;
-  products: Product[];
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: ShippingAddress;
-  paymentMethod: string;
-  taxPrice: number;
-  shippingPrice: number;
-  totalPrice: number;
-  isPaid: boolean;
-  paidAt?: string;
-  isDelivered: boolean;
-  deliveredAt?: string;
-  createdAt: string;
-}
-
-const fetchOrder = async (id: string, token: string | null) => {
-  if (!token) return null;
-  
-  try {
-    const response = await axios.get(`/orders/${id}`);
-    return response.data.order;
-  } catch (error) {
-    console.error('Error fetching order:', error);
-    throw error;
-  }
-};
+import { format } from 'date-fns';
+import { ChevronLeft, Package, Truck, CreditCard, Calendar, CheckCircle } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { token, isAuthenticated } = useAuth();
+  const { token } = useAuth();
   
-  const { data: order, isLoading, isError } = useQuery<Order>({
+  const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
-    queryFn: () => fetchOrder(id || '', token),
-    enabled: !!id && isAuthenticated,
+    queryFn: () => token && id ? getOrderById(id, token) : Promise.resolve(null),
+    enabled: !!token && !!id,
   });
-  
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
-      case 'processing':
-        return <Package className="h-5 w-5 text-blue-500" />;
-      case 'shipped':
-        return <Truck className="h-5 w-5 text-purple-500" />;
-      case 'delivered':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'cancelled':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
-      default:
-        return null;
-    }
-  };
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,179 +39,204 @@ const OrderDetailPage = () => {
     }
   };
   
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
-        <p className="text-gray-500 mb-6">Please log in to view your order details.</p>
-        <Button onClick={() => navigate('/login', { state: { from: `/order/${id}` } })}>
-          Login
-        </Button>
-      </div>
-    );
-  }
+  const formatPaymentMethod = (method: string) => {
+    switch (method) {
+      case 'credit_card':
+        return 'Credit Card';
+      case 'debit_card':
+        return 'Debit Card';
+      case 'paypal':
+        return 'PayPal';
+      case 'cash_on_delivery':
+        return 'Cash on Delivery';
+      default:
+        return method;
+    }
+  };
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <LoadingSpinner size="lg" />
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center py-12">
+          <LoadingSpinner size="lg" />
+        </div>
       </div>
     );
   }
   
-  if (isError || !order) {
+  if (error || !order) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Order Not Found</h1>
-        <p className="text-gray-500 mb-6">The order you're looking for doesn't exist or you don't have permission to view it.</p>
-        <Button onClick={() => navigate('/user/orders')}>
-          <ChevronLeft className="mr-2 h-4 w-4" /> Back to Orders
+      <div className="container mx-auto px-4 py-8">
+        <Button variant="ghost" className="mb-4" asChild>
+          <Link to="/orders"><ChevronLeft className="mr-2 h-4 w-4" /> Back to Orders</Link>
         </Button>
+        <div className="text-center py-12">
+          <p className="text-red-500 mb-4">Order not found or you don't have permission to view it</p>
+          <Button asChild>
+            <Link to="/orders">View All Orders</Link>
+          </Button>
+        </div>
       </div>
     );
   }
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <Button 
-        variant="ghost" 
-        className="mb-4" 
-        onClick={() => navigate('/user/orders')}
-      >
-        <ChevronLeft className="mr-2 h-4 w-4" /> Back to Orders
+      <Button variant="ghost" className="mb-4" asChild>
+        <Link to="/orders"><ChevronLeft className="mr-2 h-4 w-4" /> Back to Orders</Link>
       </Button>
       
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h1 className="text-2xl font-bold">Order #{order._id.slice(-8)}</h1>
-        <div className="mt-2 sm:mt-0">
-          <Badge className={`${getStatusColor(order.status)} px-3 py-1 text-sm uppercase`}>
-            {getStatusIcon(order.status)}
-            <span className="ml-1">{order.status}</span>
-          </Badge>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
           <Card>
-            <CardHeader>
-              <CardTitle>Order Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-6">
+              <div className="flex flex-wrap justify-between items-center mb-4">
+                <h1 className="text-2xl font-bold">Order #{order._id?.substring(0, 8)}</h1>
+                <Badge className={getStatusColor(order.status || 'pending')} variant="outline">
+                  {order.status || 'pending'}
+                </Badge>
+              </div>
+              
+              <div className="flex flex-wrap gap-4 mb-6">
+                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                  <Calendar className="mr-1 h-4 w-4" />
+                  Placed on {format(new Date(order.createdAt || Date.now()), 'MMMM d, yyyy')}
+                </div>
+                {order.isDelivered && (
+                  <div className="flex items-center text-sm text-green-600">
+                    <CheckCircle className="mr-1 h-4 w-4" />
+                    Delivered on {format(new Date(order.deliveredAt || Date.now()), 'MMMM d, yyyy')}
+                  </div>
+                )}
+              </div>
+              
+              <h2 className="text-xl font-semibold mb-3">Items</h2>
+              <div className="space-y-4 mb-6">
                 {order.products.map((item, index) => (
-                  <div key={index} className="flex items-center border-b pb-4 last:border-0 last:pb-0">
-                    <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                      {item.product.images && item.product.images.length > 0 ? (
+                  <div key={index} className="flex items-center border-b pb-4">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden mr-4 flex-shrink-0">
+                      {item.product && typeof item.product === 'object' && item.product.images && item.product.images[0] ? (
                         <img 
                           src={item.product.images[0]} 
-                          alt={item.product.name} 
+                          alt={item.name} 
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          No image
-                        </div>
+                        <Package className="w-full h-full p-2 text-gray-400" />
                       )}
                     </div>
-                    <div className="ml-4 flex-grow">
-                      <h3 className="font-medium">{item.product.name}</h3>
-                      <div className="text-sm text-gray-500">
-                        Quantity: {item.quantity}
+                    <div className="flex-grow">
+                      <div className="font-medium">
+                        {item.name}
+                        {item.product && typeof item.product === 'object' && item.product.seller && (
+                          <span className="text-sm text-gray-500 dark:text-gray-400 block">
+                            Seller: {typeof item.product.seller === 'object' && item.product.seller.name 
+                              ? item.product.seller.name 
+                              : 'Unknown seller'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {item.quantity} x ${item.price.toFixed(2)}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-medium">${item.price.toFixed(2)}</div>
-                      <div className="text-sm text-gray-500">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </div>
+                    <div className="text-right font-medium">
+                      ${(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  <Truck className="mr-2 h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Shipping Information</h2>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">Shipping Address:</p>
+                  <p>{order.shippingAddress.street}</p>
+                  <p>
+                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
+                  </p>
+                  <p>{order.shippingAddress.country}</p>
+                </div>
+                
+                <div className="mt-4">
+                  <p className="font-medium">Status:</p>
+                  <div className="flex items-center mt-1">
+                    <Badge className={getStatusColor(order.status || 'pending')} variant="outline">
+                      {order.status || 'pending'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  <CreditCard className="mr-2 h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Payment Information</h2>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-medium">Payment Method:</p>
+                  <p>{formatPaymentMethod(order.paymentMethod)}</p>
+                  <p className="font-medium mt-4">Payment Status:</p>
+                  <p>{order.isPaid ? (
+                    <span className="text-green-600 flex items-center">
+                      <CheckCircle className="mr-1 h-4 w-4" /> Paid on {format(new Date(order.paidAt || Date.now()), 'MMMM d, yyyy')}
+                    </span>
+                  ) : (
+                    <span className="text-yellow-600">Not Paid</span>
+                  )}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
         
-        <div className="space-y-6">
+        <div>
           <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+              
+              <div className="space-y-2 mb-4">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Items:</span>
+                  <span>Subtotal</span>
                   <span>${(order.totalPrice - order.taxPrice - order.shippingPrice).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Shipping:</span>
+                  <span>Shipping</span>
                   <span>${order.shippingPrice.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Tax:</span>
+                  <span>Tax</span>
                   <span>${order.taxPrice.toFixed(2)}</span>
                 </div>
-                <div className="border-t pt-2 mt-2 flex justify-between font-bold">
-                  <span>Total:</span>
-                  <span>${order.totalPrice.toFixed(2)}</span>
-                </div>
-                <div className="pt-2 flex flex-col space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Payment Status:</span>
-                    <span className={order.isPaid ? 'text-green-600' : 'text-red-600'}>
-                      {order.isPaid ? 'Paid' : 'Unpaid'}
-                    </span>
-                  </div>
-                  {order.isPaid && order.paidAt && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Paid On:</span>
-                      <span>{new Date(order.paidAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Payment Method:</span>
-                    <span className="capitalize">{order.paymentMethod.replace('_', ' ')}</span>
-                  </div>
-                </div>
+              </div>
+              
+              <Separator className="my-4" />
+              
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span>${order.totalPrice.toFixed(2)}</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Shipping Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p><strong>Address:</strong> {order.shippingAddress.street}</p>
-                <p><strong>City:</strong> {order.shippingAddress.city}</p>
-                <p><strong>State:</strong> {order.shippingAddress.state}</p>
-                <p><strong>Postal Code:</strong> {order.shippingAddress.postalCode}</p>
-                <p><strong>Country:</strong> {order.shippingAddress.country}</p>
-                <div className="pt-2 mt-2 border-t">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Delivery Status:</span>
-                    <span className={order.isDelivered ? 'text-green-600' : 'text-yellow-600'}>
-                      {order.isDelivered ? 'Delivered' : 'Pending Delivery'}
-                    </span>
-                  </div>
-                  {order.isDelivered && order.deliveredAt && (
-                    <div className="flex justify-between mt-1">
-                      <span className="text-gray-600">Delivered On:</span>
-                      <span>{new Date(order.deliveredAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+          <Card className="mt-6">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4">Need Help?</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                If you have any questions or issues with your order, please contact our customer support.
+              </p>
+              <Button variant="outline" className="w-full">Contact Support</Button>
             </CardContent>
           </Card>
-          
-          <div>
-            <Button variant="outline" className="w-full">
-              Contact Support
-            </Button>
-          </div>
         </div>
       </div>
     </div>
