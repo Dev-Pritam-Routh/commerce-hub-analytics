@@ -1,15 +1,48 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { getProductById } from '@/services/productService';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const CartPage = () => {
   const { cart, removeFromCart, updateQuantity } = useCart();
   
+  // Get real product data for each item in cart
+  const { isLoading } = useQuery({
+    queryKey: ['cartProducts', cart.map(item => item.id)],
+    queryFn: async () => {
+      // If cart is empty, return an empty array
+      if (cart.length === 0) return [];
+      
+      // Fetch all products in cart
+      const promises = cart.map(item => 
+        getProductById(item.id).catch(err => {
+          console.error(`Error fetching product ${item.id}:`, err);
+          return null;
+        })
+      );
+      
+      return Promise.all(promises);
+    },
+    enabled: cart.length > 0
+  });
+  
   const calculateTotal = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-4">Shopping Cart</h1>
+        <div className="flex justify-center py-10">
+          <LoadingSpinner size="lg" />
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-8">

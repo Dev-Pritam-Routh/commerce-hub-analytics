@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { getProductById, updateProduct, Product } from '@/services/productService';
 
 const SellerEditProductPage = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{id: string}>();
+  const { token } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -19,33 +22,71 @@ const SellerEditProductPage = () => {
     price: '',
     stock: '',
     imageUrl: '',
-    status: 'active'
+    status: 'active',
+    images: [] as string[]
   });
   
   useEffect(() => {
-    // Simulate API call to fetch product
-    setTimeout(() => {
-      // Mock data
-      setProduct({
-        name: 'Wireless Earbuds',
-        description: 'High-quality wireless earbuds with noise cancellation.',
-        category: 'Electronics',
-        price: '59.99',
-        stock: '12',
-        imageUrl: 'https://example.com/earbuds.jpg',
-        status: 'active'
-      });
-      setIsLoading(false);
-    }, 500);
-  }, [id]);
+    const fetchProduct = async () => {
+      if (!id || !token) return;
+      
+      try {
+        setIsLoading(true);
+        const fetchedProduct = await getProductById(id);
+        console.log("Fetched product:", fetchedProduct);
+        
+        if (fetchedProduct) {
+          setProduct({
+            name: fetchedProduct.name,
+            description: fetchedProduct.description,
+            category: fetchedProduct.category,
+            price: fetchedProduct.price.toString(),
+            stock: fetchedProduct.stock.toString(),
+            status: fetchedProduct.status || 'active',
+            imageUrl: fetchedProduct.images && fetchedProduct.images.length > 0 ? fetchedProduct.images[0] : '',
+            images: fetchedProduct.images || []
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load product. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id, token]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setProduct({ ...product, [name]: value });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setProduct({ 
+      ...product, 
+      imageUrl: value,
+      images: value ? [value] : []
+    });
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!id || !token) {
+      toast({
+        title: "Error",
+        description: "Missing product ID or authentication token.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Validate form
     if (!product.name || !product.description || !product.category || !product.price || !product.stock) {
@@ -59,18 +100,41 @@ const SellerEditProductPage = () => {
     
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const productData = {
+        name: product.name,
+        description: product.description,
+        category: product.category,
+        price: parseFloat(product.price),
+        stock: parseInt(product.stock),
+        status: product.status as 'active' | 'draft' | 'archived',
+        images: product.imageUrl ? [product.imageUrl] : product.images
+      };
+      
+      console.log("Updating product with data:", productData);
+      
+      const updatedProduct = await updateProduct(id, productData, token);
+      console.log("Product updated:", updatedProduct);
+      
       toast({
         title: "Success",
         description: "Product has been updated successfully.",
       });
-      setIsSubmitting(false);
+      
       navigate('/seller/products');
-    }, 1000);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
-  const categories = ['Electronics', 'Accessories', 'Clothing', 'Home', 'Beauty'];
+  const categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Beauty', 'Toys', 'Sports', 'Food', 'Other'];
   
   if (isLoading) {
     return (
@@ -168,7 +232,8 @@ const SellerEditProductPage = () => {
                   className="w-full p-2 border rounded-md"
                 >
                   <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
                 </select>
               </div>
               
@@ -180,7 +245,7 @@ const SellerEditProductPage = () => {
                   type="text"
                   name="imageUrl"
                   value={product.imageUrl}
-                  onChange={handleChange}
+                  onChange={handleImageUrlChange}
                   className="w-full p-2 border rounded-md"
                   placeholder="https://example.com/image.jpg"
                 />

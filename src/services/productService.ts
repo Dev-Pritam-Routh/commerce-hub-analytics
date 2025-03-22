@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
@@ -44,6 +45,8 @@ export const getAllProducts = async (filters: Record<string, any> = {}) => {
     });
     
     const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    console.log("Fetching products with query:", queryString);
+    
     const response = await axios.get(`/products${queryString}`);
     console.log("API Response:", response.data);
     return response.data.products;
@@ -56,7 +59,9 @@ export const getAllProducts = async (filters: Record<string, any> = {}) => {
 // Get featured products
 export const getFeaturedProducts = async () => {
   try {
+    console.log("Fetching featured products");
     const response = await axios.get('/products?featured=true');
+    console.log("Featured products response:", response.data);
     return response.data.products;
   } catch (error) {
     console.error('Error fetching featured products:', error);
@@ -67,7 +72,9 @@ export const getFeaturedProducts = async () => {
 // Get product by ID
 export const getProductById = async (id: string) => {
   try {
+    console.log(`Fetching product with ID: ${id}`);
     const response = await axios.get(`/products/${id}`);
+    console.log("Product details response:", response.data);
     return response.data.product;
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -100,12 +107,17 @@ export const addProduct = async (productData: Product, token: string) => {
 // Update a product (requires authentication)
 export const updateProduct = async (id: string, productData: Partial<Product>, token: string) => {
   try {
+    console.log(`Updating product ${id} with data:`, productData);
     setAuthToken(token);
     const response = await axios.put(`/products/${id}`, productData);
     setAuthToken(null);
+    console.log("Update product response:", response.data);
     return response.data.product;
   } catch (error) {
     console.error('Error updating product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
@@ -114,12 +126,17 @@ export const updateProduct = async (id: string, productData: Partial<Product>, t
 // Delete a product (requires authentication)
 export const deleteProduct = async (id: string, token: string) => {
   try {
+    console.log(`Deleting product with ID: ${id}`);
     setAuthToken(token);
     const response = await axios.delete(`/products/${id}`);
     setAuthToken(null);
+    console.log("Delete product response:", response.data);
     return response.data;
   } catch (error) {
     console.error('Error deleting product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
@@ -128,12 +145,55 @@ export const deleteProduct = async (id: string, token: string) => {
 // Get seller products (requires authentication)
 export const getSellerProducts = async (token: string) => {
   try {
+    console.log("Fetching seller's products");
     setAuthToken(token);
     const response = await axios.get('/products/seller/products');
     setAuthToken(null);
+    console.log("Seller products response:", response.data);
     return response.data.products;
   } catch (error) {
     console.error('Error fetching seller products:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Get product statistics (requires authentication)
+export const getProductStats = async (token: string) => {
+  try {
+    console.log("Fetching product statistics");
+    setAuthToken(token);
+    const response = await axios.get('/products/seller/stats');
+    setAuthToken(null);
+    console.log("Product stats response:", response.data);
+    return response.data.stats;
+  } catch (error) {
+    console.error('Error fetching product statistics:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Add product review (requires authentication)
+export const addProductReview = async (productId: string, reviewData: { rating: number, review: string }, token: string) => {
+  try {
+    console.log(`Adding review for product ${productId}:`, reviewData);
+    setAuthToken(token);
+    const response = await axios.post(`/products/${productId}/reviews`, reviewData);
+    setAuthToken(null);
+    console.log("Add review response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding product review:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
@@ -146,5 +206,7 @@ export default {
   addProduct,
   updateProduct,
   deleteProduct,
-  getSellerProducts
+  getSellerProducts,
+  getProductStats,
+  addProductReview
 };

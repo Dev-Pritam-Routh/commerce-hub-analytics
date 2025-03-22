@@ -1,8 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -20,54 +18,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Search, Filter, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const fetchProducts = async ({ 
-  search = '', 
-  category = '', 
-  minPrice, 
-  maxPrice, 
-  sort
-}: { 
-  search?: string; 
-  category?: string; 
-  minPrice?: number; 
-  maxPrice?: number; 
-  sort?: string;
-}) => {
-  try {
-    let url = '/products?';
-    
-    if (search) url += `search=${search}&`;
-    if (category) url += `category=${category}&`;
-    if (minPrice !== undefined) url += `minPrice=${minPrice}&`;
-    if (maxPrice !== undefined) url += `maxPrice=${maxPrice}&`;
-    if (sort) url += `sort=${sort}`;
-    
-    const response = await axios.get(url);
-    return response.data.products;
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    throw error;
-  }
-};
-
-const categories = [
-  'Electronics',
-  'Clothing',
-  'Home',
-  'Books',
-  'Beauty',
-  'Toys',
-  'Sports',
-  'Food',
-];
-
-const sortOptions = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'priceAsc', label: 'Price: Low to High' },
-  { value: 'priceDesc', label: 'Price: High to Low' },
-  { value: 'rating', label: 'Highest Rated' },
-];
+import { getAllProducts } from '@/services/productService';
 
 const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -139,30 +90,13 @@ const ProductsPage = () => {
   // Fetch products with filters
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', search, category, minPrice, maxPrice, sort],
-    queryFn: () => fetchProducts({ search, category, minPrice, maxPrice, sort }),
-    // Sample data fallback for when API is not available
-    placeholderData: [
-      {
-        id: '1',
-        name: 'Premium Wireless Headphones',
-        price: 249.99,
-        discountedPrice: 199.99,
-        images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'],
-        averageRating: 4.5,
-        stock: 25,
-        sellerId: '1'
-      },
-      {
-        id: '2',
-        name: 'Smart Watch Series 7',
-        price: 399.99,
-        images: ['https://images.unsplash.com/photo-1546868871-7041f2a55e12?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'],
-        averageRating: 4.8,
-        stock: 12,
-        sellerId: '2'
-      },
-      // ... more sample products
-    ]
+    queryFn: () => getAllProducts({
+      search,
+      category,
+      minPrice,
+      maxPrice,
+      sort
+    })
   });
   
   // Count active filters

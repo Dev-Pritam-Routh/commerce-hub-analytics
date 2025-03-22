@@ -1,7 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,43 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Star, ShoppingCart, ChevronLeft } from 'lucide-react';
-
-interface ProductRating {
-  user: {
-    _id: string;
-    name: string;
-  };
-  rating: number;
-  review: string;
-  date: string;
-}
-
-interface Product {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  discountedPrice: number;
-  category: string;
-  images: string[];
-  stock: number;
-  averageRating: number;
-  ratings: ProductRating[];
-  seller: {
-    _id: string;
-    name: string;
-  };
-}
-
-const fetchProduct = async (id: string) => {
-  try {
-    const res = await axios.get(`/products/${id}`);
-    return res.data.product;
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    throw error;
-  }
-};
+import { getProductById } from '@/services/productService';
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -55,9 +17,9 @@ const ProductDetailPage = () => {
   const { isAuthenticated } = useAuth();
   const [quantity, setQuantity] = useState(1);
   
-  const { data: product, isLoading, error } = useQuery<Product>({
+  const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => fetchProduct(id || ''),
+    queryFn: () => getProductById(id || ''),
     enabled: !!id
   });
   
