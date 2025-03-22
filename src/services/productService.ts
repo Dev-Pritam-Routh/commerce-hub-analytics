@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
@@ -80,12 +79,19 @@ export const getProductById = async (id: string) => {
 export const addProduct = async (productData: Product, token: string) => {
   try {
     console.log("Adding product with token:", token ? "Token exists" : "No token");
+    console.log("Product data being sent:", productData);
+    
     setAuthToken(token);
     const response = await axios.post('/products', productData);
     setAuthToken(null);
+    
+    console.log("Server response:", response.data);
     return response.data.product;
   } catch (error) {
     console.error('Error adding product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ const SellerAddProductPage = () => {
     price: '',
     stock: '',
     images: ['https://placehold.co/600x400?text=Product+Image'],
+    imageUrl: '' // Add this field to the state
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,6 +24,17 @@ const SellerAddProductPage = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setProduct({ ...product, [name]: value });
+  };
+  
+  // Handle image URL change
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setProduct({ 
+      ...product, 
+      imageUrl: value,
+      // Update the images array if there's a valid URL
+      images: value ? [value] : ['https://placehold.co/600x400?text=Product+Image']
+    });
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,11 +57,16 @@ const SellerAddProductPage = () => {
         ...product,
         price: parseFloat(product.price),
         stock: parseInt(product.stock),
+        // If user has provided a custom image URL, use it
+        images: product.imageUrl ? [product.imageUrl] : product.images
       };
       
-      console.log("Submitting product:", productData);
+      // Remove the imageUrl field before sending to API
+      const { imageUrl, ...dataToSend } = productData;
       
-      const result = await addProduct(productData, token || '');
+      console.log("Submitting product:", dataToSend);
+      
+      const result = await addProduct(dataToSend, token || '');
       
       console.log("Product creation result:", result);
       
@@ -173,7 +189,7 @@ const SellerAddProductPage = () => {
                   type="text"
                   name="imageUrl"
                   value={product.imageUrl}
-                  onChange={handleChange}
+                  onChange={handleImageUrlChange}
                   className="w-full p-2 border rounded-md"
                   placeholder="https://example.com/image.jpg"
                 />
