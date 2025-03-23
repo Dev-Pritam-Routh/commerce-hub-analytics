@@ -1,41 +1,44 @@
+
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
-// JWT Secret
-const JWT_SECRET = 'ecommerce-app-secret';
-
-// Middleware to check authentication
-const auth = (req, res, next) => {
-  const token = req.header('x-auth-token');
-  
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'No token, authorization denied' });
-  }
-  
+// Middleware to protect admin routes
+const adminAuth = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    const token = req.header('x-auth-token');
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token, authorization denied' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ecommerce-app-secret');
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+    
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied: Admin only' });
+    }
+    
+    req.user = user;
     next();
   } catch (error) {
+    console.error('Admin auth error:', error);
     res.status(401).json({ success: false, message: 'Token is not valid' });
   }
 };
 
-// Middleware to check admin role
-const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
-  }
-  next();
-};
-
-// Get all users (admin only)
-router.get('/', auth, adminOnly, async (req, res) => {
+// Get all users - admin only
+router.get('/', adminAuth, async (req, res) => {
   try {
+    console.log('Fetching all users');
     const users = await User.find().select('-password');
+    console.log(`Found ${users.length} users`);
     res.json({ success: true, users });
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -43,14 +46,23 @@ router.get('/', auth, adminOnly, async (req, res) => {
   }
 });
 
-// Get user by ID (admin only or own profile)
-router.get('/:id', auth, async (req, res) => {
+// Get all sellers - admin only
+router.get('/sellers', adminAuth, async (req, res) => {
   try {
-    // Check if user is admin or requesting their own profile
-    if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
-    
+    console.log('Fetching all sellers');
+    const sellers = await User.find({ role: 'seller' }).select('-password');
+    console.log(`Found ${sellers.length} sellers`);
+    res.json({ success: true, sellers });
+  } catch (error) {
+    console.error('Error fetching sellers:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Get user by ID - admin only
+router.get('/:id', adminAuth, async (req, res) => {
+  try {
+    console.log(`Fetching user with ID: ${req.params.id}`);
     const user = await User.findById(req.params.id).select('-password');
     
     if (!user) {
@@ -64,105 +76,199 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Update user (admin only or own profile)
-router.put('/:id', auth, async (req, res) => {
+// Create a new user - admin only
+router.post('/', adminAuth, async (req, res) => {
   try {
-    // Check if user is admin or updating their own profile
-    if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    console.log('Creating new user:', req.body);
+    const { name, email, password, role, phone, address } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide name, email and password' });
     }
     
-    const { name, email, phone, address } = req.body;
-    
-    // Build update object
-    const updateFields = {};
-    if (name) updateFields.name = name;
-    if (email) updateFields.email = email;
-    if (phone) updateFields.phone = phone;
-    if (address) updateFields.address = address;
-    
-    // If admin is updating user role
-    if (req.user.role === 'admin' && req.body.role) {
-      updateFields.role = req.body.role;
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (user) {
+      console.log('User already exists with email:', email);
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
     }
     
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { $set: updateFields },
-      { new: true }
-    ).select('-password');
+    // Create new user
+    user = new User({
+      name,
+      email,
+      password,
+      role: role || 'user',
+      phone,
+      address,
+      status: 'active'
+    });
     
+    await user.save();
+    console.log('New user created:', { name, email, role });
+    
+    res.status(201).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Update user - admin only
+router.put('/:id', adminAuth, async (req, res) => {
+  try {
+    console.log(`Updating user with ID: ${req.params.id}`);
+    const { name, email, role, phone, address, status } = req.body;
+    
+    // Find user
+    let user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    res.json({ success: true, user });
+    // Check if email is already taken by another user
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: 'Email is already taken' });
+      }
+    }
+    
+    // Update user fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (role) user.role = role;
+    if (phone) user.phone = phone;
+    if (address) user.address = address;
+    if (status) user.status = status;
+    
+    await user.save();
+    console.log('User updated successfully');
+    
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        status: user.status
+      }
+    });
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Delete user (admin only)
-router.delete('/:id', auth, adminOnly, async (req, res) => {
+// Update user status - admin only
+router.put('/:id/status', adminAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    console.log(`Updating status for user with ID: ${req.params.id}`);
+    const { status } = req.body;
     
+    if (!status || !['active', 'inactive'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status value' });
+    }
+    
+    // Find user
+    let user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    await User.findByIdAndRemove(req.params.id);
+    // Can't deactivate admin accounts
+    if (user.role === 'admin' && status === 'inactive') {
+      return res.status(400).json({ success: false, message: 'Cannot deactivate admin accounts' });
+    }
     
-    res.json({ success: true, message: 'User removed' });
+    // Update status
+    user.status = status;
+    await user.save();
+    console.log(`User status updated to ${status}`);
+    
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Delete user - admin only
+router.delete('/:id', adminAuth, async (req, res) => {
+  try {
+    console.log(`Deleting user with ID: ${req.params.id}`);
+    
+    // Find user
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Can't delete admin accounts
+    if (user.role === 'admin') {
+      return res.status(400).json({ success: false, message: 'Cannot delete admin accounts' });
+    }
+    
+    await User.findByIdAndDelete(req.params.id);
+    console.log('User deleted successfully');
+    
+    res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// Get all sellers (admin only)
-router.get('/role/sellers', auth, adminOnly, async (req, res) => {
+// Change password - admin only
+router.put('/:id/password', adminAuth, async (req, res) => {
   try {
-    const sellers = await User.find({ role: 'seller' }).select('-password');
-    res.json({ success: true, sellers });
+    console.log(`Changing password for user with ID: ${req.params.id}`);
+    const { password } = req.body;
+    
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+    
+    // Find user
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    
+    await user.save();
+    console.log('Password changed successfully');
+    
+    res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Error fetching sellers:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Get user statistics (admin only)
-router.get('/stats/overview', auth, adminOnly, async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    const totalCustomers = await User.countDocuments({ role: 'user' });
-    const totalSellers = await User.countDocuments({ role: 'seller' });
-    const totalAdmins = await User.countDocuments({ role: 'admin' });
-    
-    // Get new users in the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const newUsers = await User.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-    
-    res.json({
-      success: true,
-      stats: {
-        totalUsers,
-        totalCustomers,
-        totalSellers,
-        totalAdmins,
-        newUsers
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching user stats:', error);
+    console.error('Error changing password:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 export default router;
-

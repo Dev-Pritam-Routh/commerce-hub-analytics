@@ -40,6 +40,11 @@ const UserSchema = new mongoose.Schema({
     postalCode: String,
     country: String
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -77,7 +82,8 @@ UserSchema.statics.createDefaultAdmin = async function() {
         name: 'Admin',
         email: adminEmail,
         password: 'admin1234',
-        role: 'admin'
+        role: 'admin',
+        status: 'active'
       });
       console.log('Default admin account created successfully');
     } else {
