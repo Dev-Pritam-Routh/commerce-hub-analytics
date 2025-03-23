@@ -1,57 +1,38 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchSellerOrders, updateOrderStatus } from '@/services/orderService';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { CalendarIcon, Package, Eye, CheckCircle, XCircle } from 'lucide-react';
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from 'sonner'
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { Input } from "@/components/ui/input"
-import { ArrowLeftIcon, ArrowRightIcon } from '@radix-ui/react-icons'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-const OrdersPage = () => {
-  const navigate = useNavigate();
-  const { token } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryClient = useQueryClient();
-  const [status, setStatus] = useState(searchParams.get('status') || '');
-  const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
-  const [limit, setLimit] = useState(Number(searchParams.get('limit')) || 10);
-  const sortBy = searchParams.get('sortBy') || 'createdAt';
-  const sortOrder = searchParams.get('sortOrder') || 'desc';
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['sellerOrders', searchParams],
-    queryFn: () => fetchSellerOrders(searchParams),
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string, status: string }) => updateOrderStatus(orderId, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sellerOrders', searchParams] });
-      toast.success('Order status updated successfully!');
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update order status');
-    },
-  });
-
+const OrderStatus = ({ status }: { status: string }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -69,215 +50,178 @@ const OrdersPage = () => {
     }
   };
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    updateStatus(orderId, newStatus);
-  };
+  return (
+    <Badge className={getStatusColor(status)} variant="outline">
+      {status}
+    </Badge>
+  );
+};
 
-  const updateStatus = (orderId: string, newStatus: string) => {
-    statusMutation.mutate({ orderId, status: newStatus });
-  };
+const OrdersPage = () => {
+  const { token } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [status, setStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setSearchParams(prev => {
-      prev.set('search', e.target.value);
-      prev.set('page', '1');
-      return prev;
-    })
-    setPage(1);
-  };
+  const queryClient = useQueryClient();
 
-  const handleStatusFilter = (value: string) => {
-    setStatus(value);
-    setSearchParams(prev => {
-      prev.set('status', value);
-      prev.set('page', '1');
-      return prev;
-    })
-    setPage(1);
-  };
+  const { data: orders, isLoading, isError } = useQuery({
+    queryKey: ['seller-orders', { search: searchQuery, status, page: currentPage, limit: pageSize }],
+    queryFn: () => fetchSellerOrders({ search: searchQuery, status, page: currentPage, limit: pageSize }),
+  });
 
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    setSearchParams(prev => {
-      prev.set('page', String(newPage));
-      return prev;
-    });
-  };
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
+      updateOrderStatus(orderId, status),
+    onSuccess: () => {
+      toast.success('Order status updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to update order status');
+    },
+  });
 
-  const handleLimitChange = (newLimit: number) => {
-    setLimit(newLimit);
-    setSearchParams(prev => {
-      prev.set('limit', String(newLimit));
-      prev.set('page', '1');
-      return prev;
-    });
-    setPage(1);
+  const handleStatusUpdate = (orderId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ orderId, status: newStatus });
   };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">My Orders</h1>
-        <div className="flex justify-center items-center py-12">
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex justify-center items-center">
           <LoadingSpinner size="lg" />
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">My Orders</h1>
-        <div className="text-center py-12">
-          <p className="text-red-500 mb-4">Failed to load orders</p>
-          <Button onClick={() => window.location.reload()}>Try Again</Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data?.orders || data?.orders.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">My Orders</h1>
-        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md p-8 text-center">
-          <Package className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-          <h2 className="text-xl font-semibold mb-2">No Orders Yet</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">
-            You haven't received any orders yet.
-          </p>
+      <div className="container mx-auto py-8 px-4">
+        <div className="text-center">
+          <p className="text-red-500">Error fetching orders.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+    <div className="container mx-auto py-8 px-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Orders Management</CardTitle>
+          <CardDescription>View and manage your orders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                type="search"
+                placeholder="Search orders..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Select
+              value={status}
+              onValueChange={(value) => setStatus(value)}
+            >
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-        <div className="flex items-center mb-2 md:mb-0">
-          <Input
-            type="text"
-            placeholder="Search orders..."
-            value={search}
-            onChange={handleSearch}
-            className="mr-2"
-          />
-          <Select value={status} onValueChange={handleStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="shipped">Shipped</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Select value={String(limit)} onValueChange={(value) => handleLimitChange(Number(value))}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Limit" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="5">5</SelectItem>
-            <SelectItem value="10">10</SelectItem>
-            <SelectItem value="20">20</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[150px]">Order ID</TableHead>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.orders && data?.orders.map((order) => (
-                <TableRow key={order._id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
-                  <TableCell className="font-medium">{order._id?.substring(0, 8)}...</TableCell>
+              {orders?.orders.map((order) => (
+                <TableRow key={order._id}>
+                  <TableCell>{order._id.substring(0, 8)}</TableCell>
+                  <TableCell>{order.user?.name || 'N/A'}</TableCell>
+                  <TableCell>{format(new Date(order.createdAt), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
                   <TableCell>
-                    <div className="flex items-center">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(new Date(order.createdAt || Date.now()), 'MMM d, yyyy')}
-                    </div>
+                    <OrderStatus status={order.status} />
                   </TableCell>
-                  <TableCell>${order.totalPrice.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Badge className={`mr-2 ${getStatusColor(order.status || 'pending')}`} variant="outline">
-                        {order.status || 'pending'}
-                      </Badge>
-                      {statusMutation.isLoading && statusMutation.variables?.orderId === order._id && <LoadingSpinner size="sm" />}
-                      {statusMutation.isSuccess && statusMutation.variables?.orderId === order._id && <CheckCircle className="text-green-500 h-4 w-4 ml-1" />}
-                      {statusMutation.isError && statusMutation.variables?.orderId === order._id && <XCircle className="text-red-500 h-4 w-4 ml-1" />}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Link to={`/orders/${order._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4 mr-1" /> View
-                        </Button>
-                      </Link>
-                    </div>
+                  <TableCell className="text-right">
+                    <Select
+                      value={order.status}
+                      onValueChange={(value) => handleStatusUpdate(order._id, value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={order.status} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="shipped">Shipped</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </div>
-      </div>
 
-      {data?.totalPages > 1 && (
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href={`?page=${page - 1}`}
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page === 1}
-              >
-                <ArrowLeftIcon className="h-4 w-4" />
-              </PaginationPrevious>
-            </PaginationItem>
-            {Array.from({ length: data?.totalPages }, (_, i) => i + 1).map((pageNumber) => (
-              <PaginationItem key={pageNumber}>
-                <PaginationLink
-                  href={`?page=${pageNumber}`}
-                  isCurrent={pageNumber === page}
-                  onClick={() => handlePageChange(pageNumber)}
-                >
-                  {pageNumber}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext
-                href={`?page=${page + 1}`}
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page === data?.totalPages}
-              >
-                <ArrowRightIcon className="h-4 w-4" />
-              </PaginationNext>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
+          <div className="flex justify-between items-center mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            </Button>
+            {orders &&
+              <div className="flex items-center gap-1">
+                {[...Array(orders.totalPages)].map((_, i) => (
+                  <Button
+                    key={i}
+                    variant={currentPage === i + 1 ? "default" : "outline"}
+                    size="sm"
+                    className="w-8 h-8 p-0"
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </Button>
+                ))}
+              </div>
+            }
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              disabled={orders ? currentPage >= orders.totalPages : true}
+            >
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

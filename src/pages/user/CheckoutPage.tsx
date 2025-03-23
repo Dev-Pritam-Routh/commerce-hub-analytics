@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation } from '@tanstack/react-query';
-import { createOrder } from '@/services/orderService';
+import { createOrder, OrderData } from '@/services/orderService';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,8 @@ const CheckoutPage = () => {
   });
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
 
-  const createOrderMutation = useMutation(createOrder, {
+  const createOrderMutation = useMutation({
+    mutationFn: (orderData: OrderData) => createOrder(orderData),
     onSuccess: (data) => {
       toast.success('Order created successfully!');
       clearCart();
@@ -42,7 +44,7 @@ const CheckoutPage = () => {
     setShippingInfo({ ...shippingInfo, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItems.length === 0) {
       toast.error("Your cart is empty");
@@ -64,7 +66,6 @@ const CheckoutPage = () => {
       totalAmount: cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0),
     };
     
-    // Remove the token parameter
     createOrderMutation.mutate(orderData);
   };
 

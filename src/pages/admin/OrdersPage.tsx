@@ -1,409 +1,291 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchAdminOrders, updateOrderStatus } from '@/services/orderService';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, CheckCircle, XCircle, ExternalLink, Filter, ArrowDown, ArrowUp, Eye } from 'lucide-react';
-import { 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow 
+  TableRow,
 } from '@/components/ui/table';
-import { 
-  Pagination, 
-  PaginationContent, 
-  PaginationEllipsis, 
-  PaginationItem, 
-  PaginationLink, 
-  PaginationNext, 
-  PaginationPrevious 
-} from '@/components/ui/pagination';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Link } from 'react-router-dom';
-import { formatDistance } from 'date-fns';
-import { fetchAdminOrders, updateOrderStatus } from '@/services/orderService';
-import { useIsMobile } from '@/hooks/use-mobile';
 
-interface OrderItem {
-  _id: string;
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  seller: string;
-}
-
-interface Order {
-  _id: string;
-  user: {
-    _id: string;
-    name: string;
-    email: string;
+const OrderStatus = ({ status }: { status: string }) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'processing':
+        return 'bg-blue-100 text-blue-800';
+      case 'shipped':
+        return 'bg-purple-100 text-purple-800';
+      case 'delivered':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
-  items: OrderItem[];
-  totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  createdAt: string;
-  updatedAt: string;
-}
 
-const AdminOrdersPage = () => {
-  const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  return (
+    <Badge className={getStatusColor(status)} variant="outline">
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </Badge>
+  );
+};
+
+const OrdersPage = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [status, setStatus] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['adminOrders', { search: searchTerm, status: statusFilter, sortBy, sortOrder, page, limit }],
-    queryFn: () => fetchAdminOrders({ 
-      search: searchTerm, 
-      status: statusFilter, 
-      sortBy, 
-      sortOrder, 
-      page, 
-      limit 
-    }),
-    keepPreviousData: true,
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+
+  const { data: orders, isLoading, isError } = useQuery({
+    queryKey: ['admin-orders', { search: searchQuery, status, sortBy, sortOrder, page: currentPage, limit: pageSize }],
+    queryFn: () => fetchAdminOrders({ search: searchQuery, status, sortBy, sortOrder, page: currentPage, limit: pageSize }),
   });
-  
-  // Mutation to update order status
+
+  const queryClient = useQueryClient();
+
   const updateStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string, status: string }) => 
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) => 
       updateOrderStatus(orderId, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
       toast.success('Order status updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update order status');
-    }
+      toast.error(error?.response?.data?.message || 'Failed to update order status');
+    },
   });
-  
-  useEffect(() => {
-    if (error) {
-      toast.error('Failed to load orders');
-      console.error('Error loading orders:', error);
-    }
-  }, [error]);
-  
-  const handleSort = (field: string) => {
+
+  const handleStatusChange = (orderId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ orderId, status: newStatus });
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (field: string) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(field);
-      setSortOrder('desc');
+      setSortOrder('asc');
     }
   };
-  
-  const getSortIcon = (field: string) => {
-    if (sortBy !== field) return null;
-    return sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
-  };
-  
-  const getOrderStatusClass = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100';
-      case 'delivered':
-        return 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
-    }
-  };
-  
-  const formatTimeAgo = (dateString: string) => {
-    try {
-      return formatDistance(new Date(dateString), new Date(), { addSuffix: true });
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
-  
-  const renderStatusMenu = (order: Order) => {
-    const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-    
-    return (
-      <select
-        className="w-full p-1 border rounded text-sm"
-        value={order.status}
-        onChange={(e) => updateStatusMutation.mutate({ 
-          orderId: order._id, 
-          status: e.target.value 
-        })}
-        disabled={updateStatusMutation.isLoading}
-      >
-        {statusOptions.map(status => (
-          <option key={status} value={status}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </option>
-        ))}
-      </select>
-    );
-  };
-  
-  const renderPagination = () => {
-    if (!data || !data.totalPages) return null;
-    
-    const totalPages = data.totalPages;
-    const currentPage = data.page;
-    
-    // Simplified pagination for mobile
-    if (isMobile) {
-      return (
-        <Pagination className="mt-4">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink isActive>{currentPage}</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      );
-    }
-    
-    // Create array of pages to show
-    const pages = [];
-    const maxVisiblePages = 5;
-    
-    if (totalPages <= maxVisiblePages) {
-      // Show all pages if total is less than max visible
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      // Always include first and last page
-      pages.push(1);
-      
-      // Calculate middle pages
-      let startPage = Math.max(2, currentPage - 1);
-      let endPage = Math.min(totalPages - 1, currentPage + 1);
-      
-      // Adjust if at edges
-      if (currentPage <= 2) {
-        endPage = 4;
-      } else if (currentPage >= totalPages - 1) {
-        startPage = totalPages - 3;
-      }
-      
-      // Add ellipsis after first page if needed
-      if (startPage > 2) {
-        pages.push('ellipsis1');
-      }
-      
-      // Add middle pages
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
-      
-      // Add ellipsis before last page if needed
-      if (endPage < totalPages - 1) {
-        pages.push('ellipsis2');
-      }
-      
-      // Add last page if not already included
-      if (totalPages > 1) {
-        pages.push(totalPages);
-      }
-    }
-    
-    return (
-      <Pagination className="mt-4">
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious 
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
-            />
-          </PaginationItem>
-          
-          {pages.map((p, idx) => 
-            typeof p === 'number' ? (
-              <PaginationItem key={`page-${p}`}>
-                <PaginationLink 
-                  isActive={currentPage === p}
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </PaginationLink>
-              </PaginationItem>
-            ) : (
-              <PaginationItem key={`ellipsis-${idx}`}>
-                <PaginationEllipsis />
-              </PaginationItem>
-            )
-          )}
-          
-          <PaginationItem>
-            <PaginationNext 
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-    );
-  };
-  
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="container mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex justify-center items-center py-12">
+              <LoadingSpinner size="lg" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
-  
-  return (
-    <div className="px-4 py-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Orders</h1>
-        <p className="text-slate-600 dark:text-slate-400">Manage all customer orders</p>
+
+  if (isError) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <p className="text-red-500 mb-4">Failed to load orders</p>
+              <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-orders'] })}>
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-grow relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search by order ID or customer..."
-              className="w-full pl-10 pr-4 py-2 border rounded-md"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1); // Reset to first page on search
-              }}
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <select
-              className="w-full p-2 border rounded-md"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1); // Reset to first page on filter change
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Orders Management</CardTitle>
+          <CardDescription>View and manage all customer orders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                type="search"
+                placeholder="Search by order ID or customer name..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value);
+                setCurrentPage(1);
               }}
             >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <Table>
-            <TableCaption>
-              {data && data.total > 0 
-                ? `Showing ${(page - 1) * limit + 1} to ${Math.min(page * limit, data.total)} of ${data.total} orders`
-                : 'No orders found'}
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort('_id')}
-                >
-                  <div className="flex items-center gap-1">
-                    Order ID {getSortIcon('_id')}
-                  </div>
-                </TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort('totalAmount')}
-                >
-                  <div className="flex items-center gap-1">
-                    Total {getSortIcon('totalAmount')}
-                  </div>
-                </TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort('createdAt')}
-                >
-                  <div className="flex items-center gap-1">
-                    Date {getSortIcon('createdAt')}
-                  </div>
-                </TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data && data.orders && data.orders.length > 0 ? (
-                data.orders.map((order: Order) => (
-                  <TableRow key={order._id}>
-                    <TableCell className="font-medium">
-                      <div className="text-xs">{order._id.substring(0, 10)}...</div>
-                    </TableCell>
-                    <TableCell>{order.user?.name || 'Unknown User'}</TableCell>
-                    <TableCell>{order.items.length} items</TableCell>
-                    <TableCell className="font-medium">${order.totalAmount.toFixed(2)}</TableCell>
-                    <TableCell>
-                      {renderStatusMenu(order)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs">{formatTimeAgo(order.createdAt)}</div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                        className="mr-2"
-                        title="View order details"
-                      >
-                        <Link to={`/orders/${order._id}`}>
-                          <Eye size={16} />
-                        </Link>
-                      </Button>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="submit" className="w-full sm:w-auto">Search</Button>
+          </form>
+          
+          <div className="rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Order ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSortChange('createdAt')}
+                  >
+                    Date
+                    {sortBy === 'createdAt' && (
+                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={() => handleSortChange('totalPrice')}
+                  >
+                    Total
+                    {sortBy === 'totalPrice' && (
+                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders && orders.orders.length > 0 ? (
+                  orders.orders.map((order) => (
+                    <TableRow key={order._id}>
+                      <TableCell className="font-medium">
+                        {order._id.substring(0, 8)}
+                      </TableCell>
+                      <TableCell>
+                        {order.user && typeof order.user === 'object' ? order.user.name : 'Unknown'}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(order.createdAt), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>${order.totalPrice.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <OrderStatus status={order.status} />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={order.status}
+                          onValueChange={(value) => handleStatusChange(order._id, value)}
+                          disabled={updateStatusMutation.isPending}
+                        >
+                          <SelectTrigger className="w-[130px]">
+                            <SelectValue placeholder="Change status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="processing">Processing</SelectItem>
+                            <SelectItem value="shipped">Shipped</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">
+                      No orders found
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    No orders found matching your filters
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {renderPagination()}
-      </div>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex justify-between items-center mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            </Button>
+            {orders && 
+              <div className="flex items-center gap-1">
+                {[...Array(orders.totalPages)].map((_, i) => (
+                  <Button
+                    key={i}
+                    variant={currentPage === i + 1 ? "default" : "outline"}
+                    size="sm"
+                    className="w-8 h-8 p-0"
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </Button>
+                ))}
+              </div>
+            }
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              disabled={orders ? currentPage >= orders.totalPages : true}
+            >
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-export default AdminOrdersPage;
+export default OrdersPage;
