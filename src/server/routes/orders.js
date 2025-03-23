@@ -1,336 +1,247 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
+import { auth, isAdmin, isSeller } from '../middleware/auth.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
-
-// JWT Secret
-const JWT_SECRET = 'ecommerce-app-secret';
-
-// Middleware to check authentication
-const auth = (req, res, next) => {
-  const token = req.header('x-auth-token');
-  
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'No token, authorization denied' });
-  }
-  
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ success: false, message: 'Token is not valid' });
-  }
-};
-
-// Middleware to check admin role
-const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
-  }
-  next();
-};
 
 // Create a new order
 router.post('/', auth, async (req, res) => {
   try {
-    const {
-      products,
-      shippingAddress,
-      paymentMethod,
-      taxPrice,
-      shippingPrice,
-      totalPrice
-    } = req.body;
+    const { items, shippingInfo, paymentMethod, totalAmount } = req.body;
     
-    if (products && products.length === 0) {
-      return res.status(400).json({ success: false, message: 'No order items' });
+    // Validate items
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: 'Order must contain at least one item' });
     }
     
-    // Create new order
+    // Check product availability and update stock
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: `Product not found: ${item.productId}` });
+      }
+      
+      if (product.stock < item.quantity) {
+        return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
+      }
+      
+      // Update stock
+      product.stock -= item.quantity;
+      await product.save();
+    }
+    
+    // Create the order
     const order = new Order({
-      user: req.user.userId,
-      products,
-      shippingAddress,
+      user: req.user._id,
+      items,
+      shippingInfo,
       paymentMethod,
-      taxPrice,
-      shippingPrice,
-      totalPrice
+      totalAmount,
+      status: 'pending'
     });
     
-    // Update product stock
-    for (const item of products) {
-      const product = await Product.findById(item.product);
-      if (product) {
-        product.stock -= item.quantity;
-        await product.save();
+    await order.save();
+    
+    return res.status(201).json({ order });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user's orders
+router.get('/user', auth, async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .sort({ createdAt: -1 });
+    
+    return res.json({ orders });
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get orders for a seller
+router.get('/seller', isSeller, async (req, res) => {
+  try {
+    const { search, status, sortBy = 'createdAt', sortOrder = 'desc', page = 1, limit = 10 } = req.query;
+    
+    // Build the query
+    const query = { 'items.seller': req.user._id };
+    
+    // Add status filter if provided
+    if (status) {
+      query.status = status;
+    }
+    
+    // Add search filter if provided
+    if (search) {
+      // If the search looks like an ObjectID, search by ID
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        query._id = search;
+      } else {
+        // Otherwise search in user details
+        query.$or = [
+          { 'shippingInfo.fullName': { $regex: search, $options: 'i' } },
+          { 'shippingInfo.address': { $regex: search, $options: 'i' } },
+          { 'shippingInfo.city': { $regex: search, $options: 'i' } }
+        ];
       }
     }
     
-    const createdOrder = await order.save();
+    // Prepare the sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
     
-    res.status(201).json({ success: true, order: createdOrder });
+    // Calculate skip for pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get orders
+    const orders = await Order.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('user', 'name email');
+    
+    // Get total count for pagination
+    const total = await Order.countDocuments(query);
+    
+    return res.json({
+      orders,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
   } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('Error fetching seller orders:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get all orders (admin only)
-router.get('/admin', auth, adminOnly, async (req, res) => {
+// Admin: Get all orders
+router.get('/admin', isAdmin, async (req, res) => {
   try {
-    const orders = await Order.find({})
-      .populate('user', 'name email')
-      .populate('products.product', 'name price');
+    const { search, status, sortBy = 'createdAt', sortOrder = 'desc', page = 1, limit = 10 } = req.query;
     
-    res.json({ success: true, orders });
+    // Build the query
+    const query = {};
+    
+    // Add status filter if provided
+    if (status) {
+      query.status = status;
+    }
+    
+    // Add search filter if provided
+    if (search) {
+      // If the search looks like an ObjectID, search by ID
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        query._id = search;
+      } else {
+        // Otherwise search in user details
+        query.$or = [
+          { 'shippingInfo.fullName': { $regex: search, $options: 'i' } },
+          { 'shippingInfo.address': { $regex: search, $options: 'i' } },
+          { 'shippingInfo.city': { $regex: search, $options: 'i' } }
+        ];
+      }
+    }
+    
+    // Prepare the sort
+    const sort = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    
+    // Calculate skip for pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get orders
+    const orders = await Order.find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('user', 'name email');
+    
+    // Get total count for pagination
+    const total = await Order.countDocuments(query);
+    
+    return res.json({
+      orders,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
   } catch (error) {
-    console.error('Error fetching all orders:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('Error fetching admin orders:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get user orders
-router.get('/myorders', auth, async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user.userId })
-      .populate('products.product', 'name images');
-    
-    res.json({ success: true, orders });
-  } catch (error) {
-    console.error('Error fetching user orders:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Get order by ID
+// Get a specific order by ID
 router.get('/:id', auth, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('user', 'name email')
-      .populate('products.product', 'name price images seller');
+      .populate('user', 'name email');
     
     if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      return res.status(404).json({ message: 'Order not found' });
     }
     
-    // Check if user is admin, order owner, or seller of products in the order
-    const isSeller = order.products.some(item => {
-      return item.product.seller && item.product.seller.toString() === req.user.userId;
-    });
-    
-    if (req.user.userId !== order.user._id.toString() && req.user.role !== 'admin' && !isSeller) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    // Check if the user is authorized to view this order
+    if (!req.user.role === 'admin' && 
+        !order.user.equals(req.user._id) && 
+        !order.items.some(item => item.seller.equals(req.user._id))) {
+      return res.status(403).json({ message: 'Not authorized to view this order' });
     }
     
-    res.json({ success: true, order });
+    return res.json({ order });
   } catch (error) {
     console.error('Error fetching order:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Update order status (admin or seller)
-router.put('/:id/status', auth, async (req, res) => {
+// Update order status
+router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
+    const { id } = req.params;
     
-    const order = await Order.findById(req.params.id)
-      .populate('products.product', 'seller');
+    const order = await Order.findById(id);
     
     if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      return res.status(404).json({ message: 'Order not found' });
     }
     
-    // Check if user is admin or seller of products in the order
-    const isSeller = order.products.some(item => {
-      return item.product.seller && item.product.seller.toString() === req.user.userId;
-    });
-    
-    if (req.user.role !== 'admin' && !isSeller) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    // Verify permissions
+    if (req.user.role !== 'admin') {
+      if (req.user.role === 'seller') {
+        // Sellers can only update orders that have their products
+        const hasSellersItems = order.items.some(item => 
+          item.seller.toString() === req.user._id.toString()
+        );
+        
+        if (!hasSellersItems) {
+          return res.status(403).json({ message: 'Not authorized to update this order' });
+        }
+      } else {
+        // Regular users can't update order status
+        return res.status(403).json({ message: 'Not authorized to update order status' });
+      }
     }
     
+    // Update the status
     order.status = status;
+    await order.save();
     
-    if (status === 'delivered') {
-      order.isDelivered = true;
-      order.deliveredAt = Date.now();
-    }
-    
-    const updatedOrder = await order.save();
-    
-    res.json({ success: true, order: updatedOrder });
+    return res.json({ order });
   } catch (error) {
     console.error('Error updating order status:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Update order payment status (admin only)
-router.put('/:id/pay', auth, adminOnly, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-    
-    order.isPaid = true;
-    order.paidAt = Date.now();
-    order.paymentResult = {
-      id: req.body.id,
-      status: req.body.status,
-      update_time: req.body.update_time,
-      email_address: req.body.email_address
-    };
-    
-    const updatedOrder = await order.save();
-    
-    res.json({ success: true, order: updatedOrder });
-  } catch (error) {
-    console.error('Error updating payment status:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Get seller orders
-router.get('/seller/orders', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'seller') {
-      return res.status(403).json({ success: false, message: 'Access denied. Seller only.' });
-    }
-    
-    // Find all orders that contain products from this seller
-    const orders = await Order.find({})
-      .populate('user', 'name email')
-      .populate('products.product', 'name price seller');
-    
-    // Filter orders to only include those with products from this seller
-    const sellerOrders = orders.filter(order => {
-      return order.products.some(item => {
-        return item.product.seller && item.product.seller.toString() === req.user.userId;
-      });
-    });
-    
-    res.json({ success: true, orders: sellerOrders });
-  } catch (error) {
-    console.error('Error fetching seller orders:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Get order stats for admin
-router.get('/stats/admin', auth, adminOnly, async (req, res) => {
-  try {
-    const totalOrders = await Order.countDocuments();
-    
-    // Orders in the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentOrders = await Order.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-    
-    // Total sales amount
-    const salesData = await Order.aggregate([
-      { $match: { isPaid: true } },
-      { $group: { _id: null, total: { $sum: '$totalPrice' } } }
-    ]);
-    
-    const totalSales = salesData.length > 0 ? salesData[0].total : 0;
-    
-    // Orders by status
-    const pendingOrders = await Order.countDocuments({ status: 'pending' });
-    const processingOrders = await Order.countDocuments({ status: 'processing' });
-    const shippedOrders = await Order.countDocuments({ status: 'shipped' });
-    const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
-    const cancelledOrders = await Order.countDocuments({ status: 'cancelled' });
-    
-    res.json({
-      success: true,
-      stats: {
-        totalOrders,
-        recentOrders,
-        totalSales,
-        statusBreakdown: {
-          pending: pendingOrders,
-          processing: processingOrders,
-          shipped: shippedOrders,
-          delivered: deliveredOrders,
-          cancelled: cancelledOrders
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching order stats:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-// Get order stats for seller
-router.get('/stats/seller', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'seller') {
-      return res.status(403).json({ success: false, message: 'Access denied. Seller only.' });
-    }
-    
-    // Find all orders
-    const allOrders = await Order.find({})
-      .populate('products.product', 'seller price');
-    
-    // Filter orders to only include those with products from this seller
-    const sellerOrders = allOrders.filter(order => {
-      return order.products.some(item => {
-        return item.product.seller && item.product.seller.toString() === req.user.userId;
-      });
-    });
-    
-    // Calculate total sales for this seller
-    let totalSales = 0;
-    
-    sellerOrders.forEach(order => {
-      order.products.forEach(item => {
-        if (item.product.seller && item.product.seller.toString() === req.user.userId) {
-          totalSales += item.price * item.quantity;
-        }
-      });
-    });
-    
-    // Orders in the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentOrders = sellerOrders.filter(order => {
-      return new Date(order.createdAt) >= thirtyDaysAgo;
-    });
-    
-    // Count orders by status
-    const pendingOrders = sellerOrders.filter(order => order.status === 'pending').length;
-    const processingOrders = sellerOrders.filter(order => order.status === 'processing').length;
-    const shippedOrders = sellerOrders.filter(order => order.status === 'shipped').length;
-    const deliveredOrders = sellerOrders.filter(order => order.status === 'delivered').length;
-    
-    res.json({
-      success: true,
-      stats: {
-        totalOrders: sellerOrders.length,
-        recentOrders: recentOrders.length,
-        totalSales,
-        statusBreakdown: {
-          pending: pendingOrders,
-          processing: processingOrders,
-          shipped: shippedOrders,
-          delivered: deliveredOrders
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching seller order stats:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
