@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { getUserOrders } from '@/services/orderService';
+import { fetchUserOrders } from '@/services/orderService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ const OrdersPage = () => {
   
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => token ? getUserOrders(token) : Promise.resolve([]),
+    queryFn: () => token ? fetchUserOrders() : Promise.resolve([]),
     enabled: !!token
   });
   
@@ -93,7 +93,7 @@ const OrdersPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {orders.map((order) => (
+              {orders && orders.map((order) => (
                 <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {order._id?.substring(0, 8)}...
