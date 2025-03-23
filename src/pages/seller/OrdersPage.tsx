@@ -1,301 +1,285 @@
-
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Search, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { getSellerOrders, updateOrderStatus } from '@/services/orderService';
+import { fetchSellerOrders, updateOrderStatus } from '@/services/orderService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { CalendarIcon, Package, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from 'sonner'
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { Input } from "@/components/ui/input"
+import { ArrowLeftIcon, ArrowRightIcon } from '@radix-ui/react-icons'
 
-type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-
-interface OrderItem {
-  product: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface Order {
-  _id: string;
-  user: {
-    _id: string;
-    name: string;
-    email: string;
-  };
-  products: OrderItem[];
-  shippingAddress: {
-    street: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-  totalPrice: number;
-  status: OrderStatus;
-  createdAt: string;
-}
-
-const SellerOrdersPage = () => {
+const OrdersPage = () => {
+  const navigate = useNavigate();
   const { token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
-  
-  // Fetch seller orders
-  const { data: orders, isLoading, error } = useQuery({
-    queryKey: ['sellerOrders'],
-    queryFn: () => token ? getSellerOrders(token) : Promise.resolve([]),
-    enabled: !!token
+  const [status, setStatus] = useState(searchParams.get('status') || '');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
+  const [limit, setLimit] = useState(Number(searchParams.get('limit')) || 10);
+  const sortBy = searchParams.get('sortBy') || 'createdAt';
+  const sortOrder = searchParams.get('sortOrder') || 'desc';
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['sellerOrders', searchParams],
+    queryFn: () => fetchSellerOrders(searchParams),
   });
-  
-  // Mutation for updating order status
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string, status: OrderStatus }) => 
-      updateOrderStatus(orderId, status, token || ''),
+
+  const statusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string, status: string }) => updateOrderStatus(orderId, status),
     onSuccess: () => {
-      // Invalidate and refetch orders after status update
-      queryClient.invalidateQueries({ queryKey: ['sellerOrders'] });
-      toast.success('Order status updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['sellerOrders', searchParams] });
+      toast.success('Order status updated successfully!');
     },
-    onError: (error) => {
-      console.error('Error updating order status:', error);
-      toast.error('Failed to update order status');
-    }
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to update order status');
+    },
   });
-  
-  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    updateStatusMutation.mutate({ orderId, status: newStatus });
-  };
-  
-  const toggleOrderDetails = (orderId: string) => {
-    setExpandedOrder(expandedOrder === orderId ? null : orderId);
-  };
-  
-  // Filter orders based on search term and status filter
-  const filteredOrders = orders ? orders.filter(order => {
-    return (
-      (order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       order.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (statusFilter === '' || order.status === statusFilter)
-    );
-  }) : [];
-  
-  // Format date from ISO string
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), 'yyyy-MM-dd');
-    } catch (error) {
-      return 'Invalid date';
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'processing':
+        return 'bg-blue-100 text-blue-800';
+      case 'shipped':
+        return 'bg-purple-100 text-purple-800';
+      case 'delivered':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
-  
+
+  const handleStatusChange = (orderId: string, newStatus: string) => {
+    updateStatus(orderId, newStatus);
+  };
+
+  const updateStatus = (orderId: string, newStatus: string) => {
+    statusMutation.mutate({ orderId, status: newStatus });
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setSearchParams(prev => {
+      prev.set('search', e.target.value);
+      prev.set('page', '1');
+      return prev;
+    })
+    setPage(1);
+  };
+
+  const handleStatusFilter = (value: string) => {
+    setStatus(value);
+    setSearchParams(prev => {
+      prev.set('status', value);
+      prev.set('page', '1');
+      return prev;
+    })
+    setPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    setSearchParams(prev => {
+      prev.set('page', String(newPage));
+      return prev;
+    });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setSearchParams(prev => {
+      prev.set('limit', String(newLimit));
+      prev.set('page', '1');
+      return prev;
+    });
+    setPage(1);
+  };
+
   if (isLoading) {
     return (
-      <div className="px-4 py-6 max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-        <LoadingSpinner size="lg" />
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+        <div className="flex justify-center items-center py-12">
+          <LoadingSpinner size="lg" />
+        </div>
       </div>
     );
   }
-  
+
   if (error) {
     return (
-      <div className="px-4 py-6 max-w-7xl mx-auto">
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-md mb-6">
-          <h3 className="text-lg font-medium">Error loading orders</h3>
-          <p>There was a problem fetching your orders. Please try again later.</p>
-          <Button 
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['sellerOrders'] })}
-            variant="outline" 
-            className="mt-2"
-          >
-            Retry
-          </Button>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+        <div className="text-center py-12">
+          <p className="text-red-500 mb-4">Failed to load orders</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
         </div>
       </div>
     );
   }
-  
+
+  if (!data?.orders || data?.orders.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md p-8 text-center">
+          <Package className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+          <h2 className="text-xl font-semibold mb-2">No Orders Yet</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
+            You haven't received any orders yet.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="px-4 py-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Orders</h1>
-        <p className="text-slate-600 dark:text-slate-400">Manage your customer orders</p>
-      </div>
-      
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-grow relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search orders by ID or customer..."
-              className="w-full pl-10 pr-4 py-2 border rounded-md"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-48">
-            <select
-              className="w-full p-2 border rounded-md"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4">
+        <div className="flex items-center mb-2 md:mb-0">
+          <Input
+            type="text"
+            placeholder="Search orders..."
+            value={search}
+            onChange={handleSearch}
+            className="mr-2"
+          />
+          <Select value={status} onValueChange={handleStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="shipped">Shipped</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        
+
+        <Select value={String(limit)} onValueChange={(value) => handleLimitChange(Number(value))}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Limit" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="5">5</SelectItem>
+            <SelectItem value="10">10</SelectItem>
+            <SelectItem value="20">20</SelectItem>
+            <SelectItem value="50">50</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead>
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
-                  <React.Fragment key={order._id}>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium">{order._id.substring(0, 8)}...</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(order.createdAt)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{order.user?.name || 'Unknown'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">${order.totalPrice.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={cn(
-                            "px-2 py-1 text-xs rounded-full",
-                            order.status === 'delivered' ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100" :
-                            order.status === 'shipped' ? "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100" :
-                            order.status === 'processing' ? "bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100" :
-                            order.status === 'pending' ? "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100" :
-                            "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
-                          )}
-                        >
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => toggleOrderDetails(order._id)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
-                        >
-                          <ChevronDown size={16} className={expandedOrder === order._id ? "transform rotate-180" : ""} />
-                        </button>
-                      </td>
-                    </tr>
-                    
-                    {expandedOrder === order._id && (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-4 bg-slate-50 dark:bg-slate-700">
-                          <div className="rounded-md p-4">
-                            <h3 className="font-medium mb-2">Order Details</h3>
-                            
-                            <div className="mb-4">
-                              <p className="text-sm mb-1">
-                                <span className="font-medium">Items:</span> {order.products.length} products
-                              </p>
-                              <p className="text-sm mb-1">
-                                <span className="font-medium">Customer Email:</span> {order.user?.email || 'Not available'}
-                              </p>
-                              <p className="text-sm">
-                                <span className="font-medium">Shipping Address:</span> {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}, {order.shippingAddress.country}
-                              </p>
-                            </div>
-                            
-                            <div className="border-t pt-4 mb-4">
-                              <h4 className="font-medium mb-2">Products</h4>
-                              <ul className="space-y-2">
-                                {order.products.map((item, index) => (
-                                  <li key={index} className="text-sm">
-                                    {item.name} - {item.quantity} x ${item.price.toFixed(2)}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            
-                            <div className="border-t pt-4 mb-4">
-                              <h4 className="font-medium mb-2">Update Status</h4>
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  variant={order.status === 'pending' ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(order._id, 'pending')}
-                                  disabled={order.status === 'pending' || updateStatusMutation.isPending}
-                                >
-                                  Pending
-                                </Button>
-                                <Button
-                                  variant={order.status === 'processing' ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(order._id, 'processing')}
-                                  disabled={order.status === 'processing' || updateStatusMutation.isPending}
-                                >
-                                  Processing
-                                </Button>
-                                <Button
-                                  variant={order.status === 'shipped' ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(order._id, 'shipped')}
-                                  disabled={order.status === 'shipped' || updateStatusMutation.isPending}
-                                >
-                                  Shipped
-                                </Button>
-                                <Button
-                                  variant={order.status === 'delivered' ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(order._id, 'delivered')}
-                                  disabled={order.status === 'delivered' || updateStatusMutation.isPending}
-                                >
-                                  Delivered
-                                </Button>
-                                <Button
-                                  variant={order.status === 'cancelled' ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(order._id, 'cancelled')}
-                                  disabled={order.status === 'cancelled' || updateStatusMutation.isPending}
-                                >
-                                  Cancelled
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                    No orders found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[150px]">Order ID</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data?.orders && data?.orders.map((order) => (
+                <TableRow key={order._id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
+                  <TableCell className="font-medium">{order._id?.substring(0, 8)}...</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(new Date(order.createdAt || Date.now()), 'MMM d, yyyy')}
+                    </div>
+                  </TableCell>
+                  <TableCell>${order.totalPrice.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Badge className={`mr-2 ${getStatusColor(order.status || 'pending')}`} variant="outline">
+                        {order.status || 'pending'}
+                      </Badge>
+                      {statusMutation.isLoading && statusMutation.variables?.orderId === order._id && <LoadingSpinner size="sm" />}
+                      {statusMutation.isSuccess && statusMutation.variables?.orderId === order._id && <CheckCircle className="text-green-500 h-4 w-4 ml-1" />}
+                      {statusMutation.isError && statusMutation.variables?.orderId === order._id && <XCircle className="text-red-500 h-4 w-4 ml-1" />}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Link to={`/orders/${order._id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4 mr-1" /> View
+                        </Button>
+                      </Link>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
+
+      {data?.totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href={`?page=${page - 1}`}
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 1}
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+              </PaginationPrevious>
+            </PaginationItem>
+            {Array.from({ length: data?.totalPages }, (_, i) => i + 1).map((pageNumber) => (
+              <PaginationItem key={pageNumber}>
+                <PaginationLink
+                  href={`?page=${pageNumber}`}
+                  isCurrent={pageNumber === page}
+                  onClick={() => handlePageChange(pageNumber)}
+                >
+                  {pageNumber}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext
+                href={`?page=${page + 1}`}
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page === data?.totalPages}
+              >
+                <ArrowRightIcon className="h-4 w-4" />
+              </PaginationNext>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
     </div>
   );
 };
 
-export default SellerOrdersPage;
+export default OrdersPage;

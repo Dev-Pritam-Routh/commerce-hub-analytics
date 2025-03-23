@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { getOrderById } from '@/services/orderService';
+import { fetchOrderById } from '@/services/orderService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,7 +17,7 @@ const OrderDetailPage = () => {
   
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
-    queryFn: () => token && id ? getOrderById(id, token) : Promise.resolve(null),
+    queryFn: () => token && id ? fetchOrderById(id) : Promise.resolve(null),
     enabled: !!token && !!id,
   });
   
