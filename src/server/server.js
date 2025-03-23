@@ -47,6 +47,39 @@ const connectDB = async () => {
     
     // Create default admin account
     await User.createDefaultAdmin();
+    
+    // Create some seller accounts for testing if they don't exist
+    const existingSellers = await User.countDocuments({ role: 'seller' });
+    if (existingSellers === 0) {
+      console.log('Creating sample seller accounts');
+      const sampleSellers = [
+        {
+          name: 'John Seller',
+          email: 'john.seller@example.com',
+          password: 'seller123',
+          role: 'seller',
+          status: 'active',
+          phone: '123-456-7890',
+          productsCount: 12,
+          revenue: 5240
+        },
+        {
+          name: 'Jane Merchant',
+          email: 'jane.merchant@example.com',
+          password: 'seller123',
+          role: 'seller',
+          status: 'active',
+          phone: '987-654-3210',
+          productsCount: 8,
+          revenue: 3150
+        }
+      ];
+      
+      for (const seller of sampleSellers) {
+        await User.create(seller);
+      }
+      console.log('Sample seller accounts created successfully');
+    }
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
     process.exit(1);
