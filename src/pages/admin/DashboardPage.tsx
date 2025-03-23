@@ -1,6 +1,7 @@
+
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import axios from 'axios';
 import { 
   Card, 
   CardContent, 
@@ -37,10 +38,83 @@ import {
   Legend
 } from 'recharts';
 import { motion } from 'framer-motion';
-import { fetchAdminStats } from '@/services/adminService';
+
+const fetchAdminStats = async () => {
+  try {
+    // In a real app, these would be separate API calls
+    // We're combining them here for simplicity
+    
+    // Get user stats
+    const userStats = {
+      totalUsers: 256,
+      totalCustomers: 200,
+      totalSellers: 55,
+      newUsers: 24,
+    };
+    
+    // Get order stats
+    const orderStats = {
+      totalOrders: 1248,
+      recentOrders: 142,
+      totalSales: 124850.75,
+      statusBreakdown: {
+        pending: 48,
+        processing: 36,
+        shipped: 58,
+        delivered: 982,
+        cancelled: 124
+      }
+    };
+    
+    // Get product stats
+    const productStats = {
+      totalProducts: 875,
+      featuredProducts: 32,
+      lowStockProducts: 15,
+      categories: {
+        Electronics: 213,
+        Clothing: 189,
+        Home: 165,
+        Books: 98,
+        Beauty: 79,
+        Toys: 68,
+        Sports: 45,
+        Food: 18
+      }
+    };
+    
+    return {
+      userStats,
+      orderStats,
+      productStats
+    };
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    throw error;
+  }
+};
+
+// Sample data for charts
+const generateSalesData = () => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months.map(month => ({
+    name: month,
+    sales: Math.floor(Math.random() * 20000) + 5000,
+    orders: Math.floor(Math.random() * 200) + 50,
+    users: Math.floor(Math.random() * 50) + 10
+  }));
+};
+
+const generateCategoryData = (categories: Record<string, number>) => {
+  return Object.entries(categories).map(([name, value]) => ({
+    name,
+    value
+  }));
+};
 
 const AdminDashboardPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [salesData] = useState(generateSalesData());
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -50,19 +124,10 @@ const AdminDashboardPage = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['adminStats'],
-    queryFn: fetchAdminStats,
-    retry: 1,
-    refetchOnWindowFocus: false,
+    queryFn: fetchAdminStats
   });
-  
-  useEffect(() => {
-    if (error) {
-      toast.error('Failed to load dashboard data');
-      console.error('Dashboard data error:', error);
-    }
-  }, [error]);
   
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFEAA7', '#FF6B6B'];
   
@@ -73,13 +138,6 @@ const AdminDashboardPage = () => {
       </div>
     );
   }
-  
-  const generateCategoryData = (categories: Record<string, number> = {}) => {
-    return Object.entries(categories).map(([name, value]) => ({
-      name,
-      value
-    }));
-  };
   
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -120,7 +178,8 @@ const AdminDashboardPage = () => {
             title="Total Users"
             value={data?.userStats.totalUsers || 0}
             icon={<Users className="h-full w-full" />}
-            description="Active users on platform"
+            trend={{ value: 12, isPositive: true }}
+            description="Compared to last month"
           />
         </motion.div>
         
@@ -138,7 +197,8 @@ const AdminDashboardPage = () => {
             title="Total Orders"
             value={data?.orderStats.totalOrders || 0}
             icon={<Package className="h-full w-full" />}
-            description="All-time orders"
+            trend={{ value: 8, isPositive: true }}
+            description="Compared to last month"
           />
         </motion.div>
         
@@ -147,7 +207,8 @@ const AdminDashboardPage = () => {
             title="Total Sales"
             value={`$${(data?.orderStats.totalSales || 0).toLocaleString()}`}
             icon={<DollarSign className="h-full w-full" />}
-            description="All-time revenue"
+            trend={{ value: 14, isPositive: true }}
+            description="Compared to last month"
           />
         </motion.div>
       </motion.div>
@@ -177,7 +238,7 @@ const AdminDashboardPage = () => {
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
-                        data={data?.salesData || []}
+                        data={salesData}
                         margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                       >
                         <defs>
@@ -216,11 +277,11 @@ const AdminDashboardPage = () => {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: 'Pending', value: data?.orderStats.statusBreakdown?.pending || 0 },
-                            { name: 'Processing', value: data?.orderStats.statusBreakdown?.processing || 0 },
-                            { name: 'Shipped', value: data?.orderStats.statusBreakdown?.shipped || 0 },
-                            { name: 'Delivered', value: data?.orderStats.statusBreakdown?.delivered || 0 },
-                            { name: 'Cancelled', value: data?.orderStats.statusBreakdown?.cancelled || 0 }
+                            { name: 'Pending', value: data?.orderStats.statusBreakdown.pending || 0 },
+                            { name: 'Processing', value: data?.orderStats.statusBreakdown.processing || 0 },
+                            { name: 'Shipped', value: data?.orderStats.statusBreakdown.shipped || 0 },
+                            { name: 'Delivered', value: data?.orderStats.statusBreakdown.delivered || 0 },
+                            { name: 'Cancelled', value: data?.orderStats.statusBreakdown.cancelled || 0 }
                           ]}
                           cx="50%"
                           cy="50%"
@@ -254,7 +315,7 @@ const AdminDashboardPage = () => {
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
-                        data={generateCategoryData(data?.productStats.categories)}
+                        data={generateCategoryData(data?.productStats.categories || {})}
                         layout="vertical"
                         margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
                       >
@@ -282,7 +343,7 @@ const AdminDashboardPage = () => {
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={data?.salesData || []}
+                    data={salesData}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -411,7 +472,7 @@ const AdminDashboardPage = () => {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={data?.salesData || []}
+                      data={salesData}
                       margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                     >
                       <defs>

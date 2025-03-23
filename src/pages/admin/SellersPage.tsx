@@ -1,253 +1,158 @@
+
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchSellers, updateSellerStatus, deleteSeller } from '@/services/adminService';
-import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import { Search, Eye, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, Edit, Trash, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-const SellerStatus = ({ status }: { status: 'active' | 'inactive' }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  return (
-    <Badge className={getStatusColor(status)} variant="outline">
-      {status}
-    </Badge>
-  );
-};
-
-const SellersPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [status, setStatus] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
-
-  const { data: sellers, isLoading, isError } = useQuery({
-    queryKey: ['admin-sellers', { search: searchQuery, status, page: currentPage, limit: pageSize }],
-    queryFn: () => fetchSellers({ search: searchQuery, status, page: currentPage, limit: pageSize }),
-  });
-
-  const queryClient = useQueryClient();
-
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ sellerId, status }: { sellerId: string; status: 'active' | 'inactive' }) => 
-      updateSellerStatus(sellerId, status),
-    onSuccess: () => {
-      toast.success('Seller status updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin-sellers'] });
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update seller status');
-    },
-  });
-
-  const deleteSellerMutation = useMutation({
-    mutationFn: (sellerId: string) => deleteSeller(sellerId),
-    onSuccess: () => {
-      toast.success('Seller deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin-sellers'] });
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to delete seller');
-    },
-  });
-
-  const handleStatusUpdate = (sellerId: string, newStatus: 'active' | 'inactive') => {
-    updateStatusMutation.mutate({ sellerId, status: newStatus });
-  };
-
-  const handleDeleteSeller = (sellerId: string) => {
-    deleteSellerMutation.mutate(sellerId);
-  };
-
-  if (isLoading) {
+const AdminSellersPage = () => {
+  // Placeholder data - in a real app this would come from an API
+  const [sellers, setSellers] = useState([
+    { id: '1', name: 'Tech Shop', email: 'contact@techshop.com', products: 45, revenue: 12500, status: 'active', joined: '2023-01-15' },
+    { id: '2', name: 'Fashion Hub', email: 'sales@fashionhub.com', products: 78, revenue: 9800, status: 'active', joined: '2023-02-10' },
+    { id: '3', name: 'Home Goods', email: 'info@homegoods.com', products: 34, revenue: 5600, status: 'active', joined: '2023-03-05' },
+    { id: '4', name: 'Beauty Store', email: 'hello@beautystore.com', products: 22, revenue: 3200, status: 'inactive', joined: '2023-04-20' },
+    { id: '5', name: 'Sport Outlet', email: 'support@sportoutlet.com', products: 15, revenue: 2100, status: 'pending', joined: '2023-05-12' },
+  ]);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  
+  const filteredSellers = sellers.filter(seller => {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
+      (seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      seller.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (statusFilter === '' || seller.status === statusFilter)
     );
-  }
-
-  if (isError) {
-    return <div className="text-red-500">Error fetching sellers</div>;
-  }
-
+  });
+  
+  const handleDeleteSeller = (id: string) => {
+    setSellers(sellers.filter(seller => seller.id !== id));
+  };
+  
+  const handleToggleStatus = (id: string) => {
+    setSellers(
+      sellers.map(seller => 
+        seller.id === id 
+          ? { ...seller, status: seller.status === 'active' ? 'inactive' : 'active' } 
+          : seller
+      )
+    );
+  };
+  
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Sellers Management</CardTitle>
-          <CardDescription>View and manage sellers</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Search sellers..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Select
-              value={status}
-              onValueChange={(value) => setStatus(value)}
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="px-4 py-6 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Sellers</h1>
+        <p className="text-slate-600 dark:text-slate-400">Manage marketplace sellers</p>
+      </div>
+      
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-grow relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search sellers..."
+              className="w-full pl-10 pr-4 py-2 border rounded-md"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Joined Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sellers?.sellers.map((seller) => (
-                <TableRow key={seller._id}>
-                  <TableCell>{seller.name}</TableCell>
-                  <TableCell>{seller.email}</TableCell>
-                  <TableCell>{format(new Date(seller.createdAt), 'MMMM d, yyyy')}</TableCell>
-                  <TableCell>
-                    <SellerStatus status={seller.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Link to={`/admin/sellers/${seller._id}`} className="hover:underline">
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+          <div className="w-full sm:w-48">
+            <select
+              className="w-full p-2 border rounded-md"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Seller</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Products</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Revenue</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Joined</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {filteredSellers.map((seller) => (
+                <tr key={seller.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium">{seller.name}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">ID: {seller.id}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{seller.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{seller.products}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">${seller.revenue.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      seller.status === 'active'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
+                        : seller.status === 'pending'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100'
+                        : 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
+                    }`}>
+                      {seller.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{seller.joined}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <Button 
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleToggleStatus(seller.id)}
+                      className="mr-2"
+                    >
+                      {seller.status === 'active' ? (
+                        <XCircle size={16} className="text-red-500" />
+                      ) : (
+                        <CheckCircle size={16} className="text-green-500" />
+                      )}
+                    </Button>
+                    <Button 
+                      variant="ghost"
+                      size="icon"
+                      className="mr-2"
+                      asChild
+                    >
+                      <Link to={`/admin/products?seller=${seller.id}`}>
+                        <ExternalLink size={16} />
                       </Link>
-                      <Select onValueChange={(value) => handleStatusUpdate(seller._id, value as 'active' | 'inactive')}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Update Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete the seller from our servers.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteSeller(seller._id)}>Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </Button>
+                    <Button 
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteSeller(seller.id)}
+                    >
+                      <Trash size={16} />
+                    </Button>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
-          <div className="flex justify-between items-center mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-            </Button>
-            {sellers && 
-              <div className="flex items-center gap-1">
-                {[...Array(sellers.totalPages)].map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={currentPage === i + 1 ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8 p-0"
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-              </div>
-            }
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              disabled={sellers ? currentPage >= sellers.totalPages : true}
-            >
-              Next <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              {filteredSellers.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No sellers found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default SellersPage;
+export default AdminSellersPage;

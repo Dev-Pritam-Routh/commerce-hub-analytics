@@ -1,229 +1,301 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchSellerOrders, updateOrderStatus } from '@/services/orderService';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { getSellerOrders, updateOrderStatus } from '@/services/orderService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { format } from 'date-fns';
 
-const OrderStatus = ({ status }: { status: string }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+
+interface OrderItem {
+  product: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Order {
+  _id: string;
+  user: {
+    _id: string;
+    name: string;
+    email: string;
   };
+  products: OrderItem[];
+  shippingAddress: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  totalPrice: number;
+  status: OrderStatus;
+  createdAt: string;
+}
 
-  return (
-    <Badge className={getStatusColor(status)} variant="outline">
-      {status}
-    </Badge>
-  );
-};
-
-const OrdersPage = () => {
+const SellerOrdersPage = () => {
   const { token } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [status, setStatus] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
-
   const queryClient = useQueryClient();
-
-  const { data: orders, isLoading, isError } = useQuery({
-    queryKey: ['seller-orders', { search: searchQuery, status, page: currentPage, limit: pageSize }],
-    queryFn: () => fetchSellerOrders({ search: searchQuery, status, page: currentPage, limit: pageSize }),
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  
+  // Fetch seller orders
+  const { data: orders, isLoading, error } = useQuery({
+    queryKey: ['sellerOrders'],
+    queryFn: () => token ? getSellerOrders(token) : Promise.resolve([]),
+    enabled: !!token
   });
-
+  
+  // Mutation for updating order status
   const updateStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
-      updateOrderStatus(orderId, status),
+    mutationFn: ({ orderId, status }: { orderId: string, status: OrderStatus }) => 
+      updateOrderStatus(orderId, status, token || ''),
     onSuccess: () => {
+      // Invalidate and refetch orders after status update
+      queryClient.invalidateQueries({ queryKey: ['sellerOrders'] });
       toast.success('Order status updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update order status');
-    },
+    onError: (error) => {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+    }
   });
-
-  const handleStatusUpdate = (orderId: string, newStatus: string) => {
+  
+  const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     updateStatusMutation.mutate({ orderId, status: newStatus });
   };
-
+  
+  const toggleOrderDetails = (orderId: string) => {
+    setExpandedOrder(expandedOrder === orderId ? null : orderId);
+  };
+  
+  // Filter orders based on search term and status filter
+  const filteredOrders = orders ? orders.filter(order => {
+    return (
+      (order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       order.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (statusFilter === '' || order.status === statusFilter)
+    );
+  }) : [];
+  
+  // Format date from ISO string
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'yyyy-MM-dd');
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+  
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex justify-center items-center">
-          <LoadingSpinner size="lg" />
-        </div>
+      <div className="px-4 py-6 max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
-
-  if (isError) {
+  
+  if (error) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="text-center">
-          <p className="text-red-500">Error fetching orders.</p>
+      <div className="px-4 py-6 max-w-7xl mx-auto">
+        <div className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-md mb-6">
+          <h3 className="text-lg font-medium">Error loading orders</h3>
+          <p>There was a problem fetching your orders. Please try again later.</p>
+          <Button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['sellerOrders'] })}
+            variant="outline" 
+            className="mt-2"
+          >
+            Retry
+          </Button>
         </div>
       </div>
     );
   }
-
+  
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Orders Management</CardTitle>
-          <CardDescription>View and manage your orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Search orders..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Select
-              value={status}
-              onValueChange={(value) => setStatus(value)}
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="px-4 py-6 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Orders</h1>
+        <p className="text-slate-600 dark:text-slate-400">Manage your customer orders</p>
+      </div>
+      
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-grow relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search orders by ID or customer..."
+              className="w-full pl-10 pr-4 py-2 border rounded-md"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders?.orders.map((order) => (
-                <TableRow key={order._id}>
-                  <TableCell>{order._id.substring(0, 8)}</TableCell>
-                  <TableCell>{order.user?.name || 'N/A'}</TableCell>
-                  <TableCell>{format(new Date(order.createdAt), 'MMM d, yyyy')}</TableCell>
-                  <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <OrderStatus status={order.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Select
-                      value={order.status}
-                      onValueChange={(value) => handleStatusUpdate(order._id, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={order.status} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="processing">Processing</SelectItem>
-                        <SelectItem value="shipped">Shipped</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <div className="flex justify-between items-center mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+          <div className="w-full sm:w-48">
+            <select
+              className="w-full p-2 border rounded-md"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-            </Button>
-            {orders &&
-              <div className="flex items-center gap-1">
-                {[...Array(orders.totalPages)].map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={currentPage === i + 1 ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8 p-0"
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-              </div>
-            }
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              disabled={orders ? currentPage >= orders.totalPages : true}
-            >
-              Next <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Order ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Customer</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => (
+                  <React.Fragment key={order._id}>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium">{order._id.substring(0, 8)}...</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(order.createdAt)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{order.user?.name || 'Unknown'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">${order.totalPrice.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-xs rounded-full",
+                            order.status === 'delivered' ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100" :
+                            order.status === 'shipped' ? "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100" :
+                            order.status === 'processing' ? "bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100" :
+                            order.status === 'pending' ? "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100" :
+                            "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                          )}
+                        >
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => toggleOrderDetails(order._id)}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
+                        >
+                          <ChevronDown size={16} className={expandedOrder === order._id ? "transform rotate-180" : ""} />
+                        </button>
+                      </td>
+                    </tr>
+                    
+                    {expandedOrder === order._id && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-4 bg-slate-50 dark:bg-slate-700">
+                          <div className="rounded-md p-4">
+                            <h3 className="font-medium mb-2">Order Details</h3>
+                            
+                            <div className="mb-4">
+                              <p className="text-sm mb-1">
+                                <span className="font-medium">Items:</span> {order.products.length} products
+                              </p>
+                              <p className="text-sm mb-1">
+                                <span className="font-medium">Customer Email:</span> {order.user?.email || 'Not available'}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium">Shipping Address:</span> {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}, {order.shippingAddress.country}
+                              </p>
+                            </div>
+                            
+                            <div className="border-t pt-4 mb-4">
+                              <h4 className="font-medium mb-2">Products</h4>
+                              <ul className="space-y-2">
+                                {order.products.map((item, index) => (
+                                  <li key={index} className="text-sm">
+                                    {item.name} - {item.quantity} x ${item.price.toFixed(2)}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div className="border-t pt-4 mb-4">
+                              <h4 className="font-medium mb-2">Update Status</h4>
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant={order.status === 'pending' ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(order._id, 'pending')}
+                                  disabled={order.status === 'pending' || updateStatusMutation.isPending}
+                                >
+                                  Pending
+                                </Button>
+                                <Button
+                                  variant={order.status === 'processing' ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(order._id, 'processing')}
+                                  disabled={order.status === 'processing' || updateStatusMutation.isPending}
+                                >
+                                  Processing
+                                </Button>
+                                <Button
+                                  variant={order.status === 'shipped' ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(order._id, 'shipped')}
+                                  disabled={order.status === 'shipped' || updateStatusMutation.isPending}
+                                >
+                                  Shipped
+                                </Button>
+                                <Button
+                                  variant={order.status === 'delivered' ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(order._id, 'delivered')}
+                                  disabled={order.status === 'delivered' || updateStatusMutation.isPending}
+                                >
+                                  Delivered
+                                </Button>
+                                <Button
+                                  variant={order.status === 'cancelled' ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(order._id, 'cancelled')}
+                                  disabled={order.status === 'cancelled' || updateStatusMutation.isPending}
+                                >
+                                  Cancelled
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No orders found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default OrdersPage;
+export default SellerOrdersPage;

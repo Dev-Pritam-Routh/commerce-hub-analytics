@@ -1,291 +1,207 @@
+
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchAdminOrders, updateOrderStatus } from '@/services/orderService';
-import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Search, Filter, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const OrderStatus = ({ status }: { status: string }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  return (
-    <Badge className={getStatusColor(status)} variant="outline">
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </Badge>
-  );
-};
-
-const OrdersPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [status, setStatus] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
-
-  const { data: orders, isLoading, isError } = useQuery({
-    queryKey: ['admin-orders', { search: searchQuery, status, sortBy, sortOrder, page: currentPage, limit: pageSize }],
-    queryFn: () => fetchAdminOrders({ search: searchQuery, status, sortBy, sortOrder, page: currentPage, limit: pageSize }),
+const AdminOrdersPage = () => {
+  // Placeholder data - in a real app this would come from an API
+  const [orders, setOrders] = useState([
+    { id: 'ORD-12345', date: '2023-05-15', customer: 'John Doe', seller: 'Tech Shop', total: 259.99, status: 'delivered', items: 3 },
+    { id: 'ORD-12346', date: '2023-05-16', customer: 'Jane Smith', seller: 'Fashion Hub', total: 129.50, status: 'shipped', items: 2 },
+    { id: 'ORD-12347', date: '2023-05-17', customer: 'Bob Johnson', seller: 'Tech Shop', total: 399.99, status: 'processing', items: 1 },
+    { id: 'ORD-12348', date: '2023-05-18', customer: 'Alice Brown', seller: 'Home Goods', total: 74.99, status: 'pending', items: 1 },
+    { id: 'ORD-12349', date: '2023-05-19', customer: 'Charlie Davis', seller: 'Beauty Store', total: 149.95, status: 'cancelled', items: 2 },
+  ]);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  
+  const filteredOrders = orders.filter(order => {
+    return (
+      (order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       order.seller.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (statusFilter === '' || order.status === statusFilter)
+    );
   });
-
-  const queryClient = useQueryClient();
-
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: string; status: string }) => 
-      updateOrderStatus(orderId, status),
-    onSuccess: () => {
-      toast.success('Order status updated successfully');
-      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update order status');
-    },
-  });
-
+  
   const handleStatusChange = (orderId: string, newStatus: string) => {
-    updateStatusMutation.mutate({ orderId, status: newStatus });
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
-  };
-
-  const handleSortChange = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-center items-center py-12">
-              <LoadingSpinner size="lg" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+    setOrders(
+      orders.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      )
     );
-  }
-
-  if (isError) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <p className="text-red-500 mb-4">Failed to load orders</p>
-              <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-orders'] })}>
-                Try Again
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  };
+  
+  const toggleOrderDetails = (orderId: string) => {
+    setExpandedOrder(expandedOrder === orderId ? null : orderId);
+  };
+  
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Orders Management</CardTitle>
-          <CardDescription>View and manage all customer orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Search by order ID or customer name..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Select
-              value={status}
-              onValueChange={(value) => {
-                setStatus(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button type="submit" className="w-full sm:w-auto">Search</Button>
-          </form>
-          
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSortChange('createdAt')}
-                  >
-                    Date
-                    {sortBy === 'createdAt' && (
-                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer"
-                    onClick={() => handleSortChange('totalPrice')}
-                  >
-                    Total
-                    {sortBy === 'totalPrice' && (
-                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders && orders.orders.length > 0 ? (
-                  orders.orders.map((order) => (
-                    <TableRow key={order._id}>
-                      <TableCell className="font-medium">
-                        {order._id.substring(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        {order.user && typeof order.user === 'object' ? order.user.name : 'Unknown'}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(order.createdAt), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>${order.totalPrice.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <OrderStatus status={order.status} />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={order.status}
-                          onValueChange={(value) => handleStatusChange(order._id, value)}
-                          disabled={updateStatusMutation.isPending}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue placeholder="Change status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="processing">Processing</SelectItem>
-                            <SelectItem value="shipped">Shipped</SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4">
-                      No orders found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+    <div className="px-4 py-6 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Orders</h1>
+        <p className="text-slate-600 dark:text-slate-400">Manage all orders in the system</p>
+      </div>
+      
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-8">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-grow relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search orders, customers, or sellers..."
+              className="w-full pl-10 pr-4 py-2 border rounded-md"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          
-          <div className="flex justify-between items-center mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+          <div className="w-full sm:w-48">
+            <select
+              className="w-full p-2 border rounded-md"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-            </Button>
-            {orders && 
-              <div className="flex items-center gap-1">
-                {[...Array(orders.totalPages)].map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={currentPage === i + 1 ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8 p-0"
-                    onClick={() => setCurrentPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-              </div>
-            }
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              disabled={orders ? currentPage >= orders.totalPages : true}
-            >
-              Next <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Order ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Customer</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Seller</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+              {filteredOrders.map((order) => (
+                <React.Fragment key={order.id}>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium">{order.id}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{order.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{order.customer}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{order.seller}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">${order.total.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={cn(
+                          "px-2 py-1 text-xs rounded-full",
+                          order.status === 'delivered' ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100" :
+                          order.status === 'shipped' ? "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100" :
+                          order.status === 'processing' ? "bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100" :
+                          order.status === 'pending' ? "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100" :
+                          "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                        )}
+                      >
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => toggleOrderDetails(order.id)}
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        <ChevronDown size={16} className={expandedOrder === order.id ? "transform rotate-180" : ""} />
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  {expandedOrder === order.id && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-4 bg-slate-50 dark:bg-slate-700">
+                        <div className="rounded-md p-4">
+                          <h3 className="font-medium mb-2">Order Details</h3>
+                          
+                          <div className="mb-4">
+                            <p className="text-sm mb-1">
+                              <span className="font-medium">Items:</span> {order.items} products
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Shipping Address:</span> 123 Main St, Anytown, USA
+                            </p>
+                          </div>
+                          
+                          <div className="border-t pt-4 mb-4">
+                            <h4 className="font-medium mb-2">Update Status</h4>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant={order.status === 'pending' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleStatusChange(order.id, 'pending')}
+                                disabled={order.status === 'pending'}
+                              >
+                                Pending
+                              </Button>
+                              <Button
+                                variant={order.status === 'processing' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleStatusChange(order.id, 'processing')}
+                                disabled={order.status === 'processing'}
+                              >
+                                Processing
+                              </Button>
+                              <Button
+                                variant={order.status === 'shipped' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleStatusChange(order.id, 'shipped')}
+                                disabled={order.status === 'shipped'}
+                              >
+                                Shipped
+                              </Button>
+                              <Button
+                                variant={order.status === 'delivered' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleStatusChange(order.id, 'delivered')}
+                                disabled={order.status === 'delivered'}
+                              >
+                                Delivered
+                              </Button>
+                              <Button
+                                variant={order.status === 'cancelled' ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleStatusChange(order.id, 'cancelled')}
+                                disabled={order.status === 'cancelled'}
+                              >
+                                Cancelled
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+              
+              {filteredOrders.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No orders found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default OrdersPage;
+export default AdminOrdersPage;

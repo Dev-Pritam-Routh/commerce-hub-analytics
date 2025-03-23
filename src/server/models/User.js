@@ -29,11 +29,6 @@ const UserSchema = new mongoose.Schema({
     enum: ['user', 'seller', 'admin'],
     default: 'user'
   },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'pending'],
-    default: 'active'
-  },
   phone: {
     type: String,
     trim: true
@@ -82,8 +77,7 @@ UserSchema.statics.createDefaultAdmin = async function() {
         name: 'Admin',
         email: adminEmail,
         password: 'admin1234',
-        role: 'admin',
-        status: 'active'
+        role: 'admin'
       });
       console.log('Default admin account created successfully');
     } else {

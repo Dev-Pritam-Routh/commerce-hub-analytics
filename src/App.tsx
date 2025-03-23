@@ -1,4 +1,5 @@
 
+
 import { Toaster } from 'sonner';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import Layout from "./components/Layout";
-import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
 
@@ -57,8 +57,8 @@ const App = () => (
           <Toaster closeButton={true} position="top-right" />
           <BrowserRouter>
             <Routes>
-              {/* Public Routes */}
               <Route path="/" element={<Layout />}>
+                {/* Public Routes */}
                 <Route index element={<HomePage />} />
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="products/:id" element={<ProductDetailPage />} />
@@ -83,21 +83,19 @@ const App = () => (
                   <Route path="seller/orders" element={<SellerOrdersPage />} />
                   <Route path="seller/analytics" element={<SellerAnalyticsPage />} />
                 </Route>
-              </Route>
-              
-              {/* Admin Routes - using AdminLayout */}
-              <Route element={<RoleRoute allowedRoles={['admin']} />}>
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route path="dashboard" element={<AdminDashboardPage />} />
-                  <Route path="users" element={<AdminUsersPage />} />
-                  <Route path="products" element={<AdminProductsPage />} />
-                  <Route path="orders" element={<AdminOrdersPage />} />
-                  <Route path="sellers" element={<AdminSellersPage />} />
+                
+                {/* Admin Routes */}
+                <Route element={<RoleRoute allowedRoles={['admin']} />}>
+                  <Route path="admin/dashboard" element={<AdminDashboardPage />} />
+                  <Route path="admin/users" element={<AdminUsersPage />} />
+                  <Route path="admin/products" element={<AdminProductsPage />} />
+                  <Route path="admin/orders" element={<AdminOrdersPage />} />
+                  <Route path="admin/sellers" element={<AdminSellersPage />} />
                 </Route>
+                
+                {/* 404 Not Found */}
+                <Route path="*" element={<NotFound />} />
               </Route>
-              
-              {/* 404 Not Found */}
-              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
