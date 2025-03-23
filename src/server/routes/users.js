@@ -15,11 +15,14 @@ const adminAuth = async (req, res, next) => {
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ecommerce-app-secret');
+    console.log('Decoded token:', decoded);
     const user = await User.findById(decoded.userId);
     
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid token' });
     }
+    
+    console.log('User found:', user);
     
     if (user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Access denied: Admin only' });
@@ -47,9 +50,10 @@ router.get('/', adminAuth, async (req, res) => {
 });
 
 // Get all sellers - admin only
+// Important fix: This route must be defined before the /:id route to avoid the conflict
 router.get('/sellers', adminAuth, async (req, res) => {
   try {
-    console.log('Fetching all sellers');
+    console.log('Fetching all sellers from database');
     const sellers = await User.find({ role: 'seller' }).select('-password');
     console.log(`Found ${sellers.length} sellers`);
     res.json({ success: true, sellers });
