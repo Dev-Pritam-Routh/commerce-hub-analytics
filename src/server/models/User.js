@@ -45,6 +45,14 @@ const UserSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  productsCount: {
+    type: Number,
+    default: 0
+  },
+  revenue: {
+    type: Number,
+    default: 0
+  },
   createdAt: {
     type: Date,
     default: Date.now
