@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
@@ -336,6 +335,27 @@ export const deleteProductAdmin = async (productId: string, token: string) => {
   }
 };
 
+// Export individual functions as named exports
+export {
+  getAllProducts,
+  getFeaturedProducts,
+  getProductById,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  getSellerProducts,
+  getProductStats,
+  addProductReview,
+  getAllProductsForAdmin,
+  updateProductStatus,
+  deleteProductAdmin,
+  fetchAllUsers,
+  fetchAllSellers,
+  updateUserStatus,
+  deleteUser
+};
+
+// Also export as default
 export default {
   getAllProducts,
   getFeaturedProducts,

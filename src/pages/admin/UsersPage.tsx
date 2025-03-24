@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchAllUsers, updateUserStatus, deleteUser } from '@/services/adminService';
+import * as adminService from '@/services/adminService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,14 +34,14 @@ const AdminUsersPage = () => {
   // Fetch all users
   const { data: users = [], isLoading, error } = useQuery({
     queryKey: ['users'],
-    queryFn: () => fetchAllUsers(token || ''),
+    queryFn: () => adminService.fetchAllUsers(token || ''),
     enabled: !!token,
   });
   
   // Toggle user status mutation
   const toggleStatusMutation = useMutation({
     mutationFn: ({ userId, status }: { userId: string, status: 'active' | 'inactive' }) => 
-      updateUserStatus(userId, status, token || ''),
+      adminService.updateUserStatus(userId, status, token || ''),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('User status updated successfully');
@@ -53,7 +53,7 @@ const AdminUsersPage = () => {
   
   // Delete user mutation
   const deleteUserMutation = useMutation({
-    mutationFn: (userId: string) => deleteUser(userId, token || ''),
+    mutationFn: (userId: string) => adminService.deleteUser(userId, token || ''),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('User deleted successfully');
