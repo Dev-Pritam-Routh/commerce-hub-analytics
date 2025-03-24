@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
+import dashboardRoutes from './routes/dashboard.js';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -36,6 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/admin/dashboard', dashboardRoutes);
 
 // Database connection - use environment variable or fallback to hardcoded string
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=Cluster0";
