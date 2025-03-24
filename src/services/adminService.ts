@@ -1,41 +1,10 @@
-
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Define user interfaces
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'user' | 'seller' | 'admin';
-  status: 'active' | 'inactive';
-  phone?: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
-  createdAt?: string;
-}
-
-export interface UpdateUserData {
-  name?: string;
-  email?: string;
-  role?: 'user' | 'seller' | 'admin';
-  phone?: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
-  status?: 'active' | 'inactive';
-}
+// Configure axios to use the API URL
+axios.defaults.baseURL = API_URL;
 
 // Helper function to set the auth token
 const setAuthToken = (token: string | null) => {
@@ -46,140 +15,262 @@ const setAuthToken = (token: string | null) => {
   }
 };
 
-// Fetch all users
-export const fetchAllUsers = async (token: string) => {
-  try {
-    console.log('Fetching all users');
-    setAuthToken(token);
-    const response = await axios.get(`${API_URL}/users`);
-    setAuthToken(null);
-    return response.data.users;
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    setAuthToken(null);
-    throw error;
-  }
-};
-
-// Fetch all sellers
-export const fetchAllSellers = async (token: string) => {
-  try {
-    console.log('Fetching all sellers');
-    setAuthToken(token);
-    const response = await axios.get(`${API_URL}/users/sellers`);
-    setAuthToken(null);
-    return response.data.sellers;
-  } catch (error) {
-    console.error('Error fetching sellers:', error);
-    setAuthToken(null);
-    throw error;
-  }
-};
-
-// Fetch user by ID
-export const fetchUserById = async (userId: string, token: string) => {
-  try {
-    console.log(`Fetching user with ID: ${userId}`);
-    setAuthToken(token);
-    const response = await axios.get(`${API_URL}/users/${userId}`);
-    setAuthToken(null);
-    return response.data.user;
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    setAuthToken(null);
-    throw error;
-  }
-};
-
-// Create a new user
-export const createUser = async (userData: {
+// Define product interface
+export interface Product {
+  _id?: string;
   name: string;
-  email: string;
-  password: string;
-  role?: 'user' | 'seller' | 'admin';
-  phone?: string;
-  address?: object;
-}, token: string) => {
+  description: string;
+  price: number;
+  discountedPrice?: number;
+  category: string;
+  images: string[];
+  stock: number;
+  seller?: string;
+  featured?: boolean;
+  status?: 'active' | 'draft' | 'archived';
+  averageRating?: number;
+  ratings?: any[];
+}
+
+// Get all products
+export const getAllProducts = async (filters: Record<string, any> = {}) => {
   try {
-    console.log('Creating new user:', userData);
-    setAuthToken(token);
-    const response = await axios.post(`${API_URL}/users`, userData);
-    setAuthToken(null);
-    return response.data.user;
+    // Build query string from filters
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+    
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    console.log("Fetching products with query:", queryString);
+    
+    const response = await axios.get(`/products${queryString}`);
+    console.log("API Response:", response.data);
+    return response.data.products;
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('Error fetching products:', error);
+    throw error;
+  }
+};
+
+// Get featured products
+export const getFeaturedProducts = async () => {
+  try {
+    console.log("Fetching featured products");
+    const response = await axios.get('/products?featured=true');
+    console.log("Featured products response:", response.data);
+    return response.data.products;
+  } catch (error) {
+    console.error('Error fetching featured products:', error);
+    throw error;
+  }
+};
+
+// Get product by ID
+// Get product by ID
+export const getProductById = async (id: string) => {
+  try {
+    if (!id) {
+      throw new Error('Product ID is required');
+    }
+    console.log(`Fetching product with ID: ${id}`);
+    const response = await axios.get(`/products/${id}`);
+    console.log("Product details response:", response.data);
+    return response.data.product;
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    throw error;
+  }
+};
+
+
+// Add a new product (requires authentication)
+export const addProduct = async (productData: Product, token: string) => {
+  try {
+    console.log("Adding product with token:", token ? "Token exists" : "No token");
+    console.log("Product data being sent:", productData);
+    
+    setAuthToken(token);
+    const response = await axios.post('/products', productData);
+    setAuthToken(null);
+    
+    console.log("Server response:", response.data);
+    return response.data.product;
+  } catch (error) {
+    console.error('Error adding product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
 };
 
-// Update user
-export const updateUser = async (userId: string, userData: UpdateUserData, token: string) => {
+// Update a product (requires authentication)
+export const updateProduct = async (id: string, productData: Partial<Product>, token: string) => {
   try {
-    console.log(`Updating user with ID: ${userId}`, userData);
+    console.log(`Updating product ${id} with data:`, productData);
     setAuthToken(token);
-    const response = await axios.put(`${API_URL}/users/${userId}`, userData);
+    const response = await axios.put(`/products/${id}`, productData);
     setAuthToken(null);
-    return response.data.user;
+    console.log("Update product response:", response.data);
+    return response.data.product;
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error('Error updating product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
 };
 
-// Update user status
-export const updateUserStatus = async (userId: string, status: 'active' | 'inactive', token: string) => {
+// Delete a product (requires authentication)
+export const deleteProduct = async (id: string, token: string) => {
   try {
-    console.log(`Updating status for user with ID: ${userId} to ${status}`);
+    console.log(`Deleting product with ID: ${id}`);
     setAuthToken(token);
-    const response = await axios.put(`${API_URL}/users/${userId}/status`, { status });
+    const response = await axios.delete(`/products/${id}`);
     setAuthToken(null);
-    return response.data.user;
-  } catch (error) {
-    console.error('Error updating user status:', error);
-    setAuthToken(null);
-    throw error;
-  }
-};
-
-// Delete user
-export const deleteUser = async (userId: string, token: string) => {
-  try {
-    console.log(`Deleting user with ID: ${userId}`);
-    setAuthToken(token);
-    const response = await axios.delete(`${API_URL}/users/${userId}`);
-    setAuthToken(null);
+    console.log("Delete product response:", response.data);
     return response.data;
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error('Error deleting product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
 };
 
-// Change user password
-export const changeUserPassword = async (userId: string, password: string, token: string) => {
+// Get seller products (requires authentication)
+export const getSellerProducts = async (token: string) => {
   try {
-    console.log(`Changing password for user with ID: ${userId}`);
+    console.log("Fetching seller's products");
     setAuthToken(token);
-    const response = await axios.put(`${API_URL}/users/${userId}/password`, { password });
+    const response = await axios.get('/products/seller/products');
     setAuthToken(null);
+    console.log("Seller products response:", response.data);
+    return response.data.products;
+  } catch (error) {
+    console.error('Error fetching seller products:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Get product statistics (requires authentication)
+export const getProductStats = async (token: string) => {
+  try {
+    console.log("Fetching product statistics");
+    setAuthToken(token);
+    const response = await axios.get('/products/seller/stats');
+    setAuthToken(null);
+    console.log("Product stats response:", response.data);
+    return response.data.stats;
+  } catch (error) {
+    console.error('Error fetching product statistics:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Add product review (requires authentication)
+export const addProductReview = async (productId: string, reviewData: { rating: number, review: string }, token: string) => {
+  try {
+    console.log(`Adding review for product ${productId}:`, reviewData);
+    setAuthToken(token);
+    const response = await axios.post(`/products/${productId}/reviews`, reviewData);
+    setAuthToken(null);
+    console.log("Add review response:", response.data);
     return response.data;
   } catch (error) {
-    console.error('Error changing password:', error);
+    console.error('Error adding product review:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Get all products for admin
+export const getAllProductsForAdmin = async (token: string) => {
+  try {
+    console.log("Fetching all products for admin");
+    setAuthToken(token);
+    const response = await axios.get('/products');
+    setAuthToken(null);
+    console.log("Admin products response:", response.data);
+    return response.data.products;
+  } catch (error) {
+    console.error('Error fetching products for admin:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Update product status (admin only)
+export const updateProductStatus = async (productId: string, status: 'active' | 'inactive' | 'archived', token: string) => {
+  try {
+    console.log(`Updating product ${productId} status to ${status}`);
+    setAuthToken(token);
+    const response = await axios.put(`/products/${productId}`, { status });
+    setAuthToken(null);
+    console.log("Update product status response:", response.data);
+    return response.data.product;
+  } catch (error) {
+    console.error('Error updating product status:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Delete product (admin only)
+export const deleteProductAdmin = async (productId: string, token: string) => {
+  try {
+    console.log(`Deleting product with ID: ${productId}`);
+    setAuthToken(token);
+    const response = await axios.delete(`/products/${productId}`);
+    setAuthToken(null);
+    console.log("Delete product response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Server error response:', error.response.data);
+    }
     setAuthToken(null);
     throw error;
   }
 };
 
 export default {
-  fetchAllUsers,
-  fetchAllSellers,
-  fetchUserById,
-  createUser,
-  updateUser,
-  updateUserStatus,
-  deleteUser,
-  changeUserPassword
+  getAllProducts,
+  getFeaturedProducts,
+  getProductById,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  getSellerProducts,
+  getProductStats,
+  addProductReview,
+  getAllProductsForAdmin,
+  updateProductStatus,
+  deleteProductAdmin
 };
