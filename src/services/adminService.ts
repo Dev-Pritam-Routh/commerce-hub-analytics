@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
@@ -31,6 +32,82 @@ export interface Product {
   averageRating?: number;
   ratings?: any[];
 }
+
+// Define user interface
+export interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  productsCount?: number;
+  revenue?: number;
+}
+
+// Fetch all users (admin only)
+export const fetchAllUsers = async (token: string) => {
+  try {
+    console.log("Fetching all users");
+    setAuthToken(token);
+    const response = await axios.get('/users');
+    setAuthToken(null);
+    console.log("Users response:", response.data);
+    return response.data.users;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Fetch all sellers (admin only)
+export const fetchAllSellers = async (token: string) => {
+  try {
+    console.log("Fetching all sellers");
+    setAuthToken(token);
+    const response = await axios.get('/users/sellers');
+    setAuthToken(null);
+    console.log("Sellers response:", response.data);
+    return response.data.sellers;
+  } catch (error) {
+    console.error('Error fetching sellers:', error);
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Update user status (admin only)
+export const updateUserStatus = async (userId: string, status: 'active' | 'inactive', token: string) => {
+  try {
+    console.log(`Updating user ${userId} status to ${status}`);
+    setAuthToken(token);
+    const response = await axios.patch(`/users/${userId}/status`, { status });
+    setAuthToken(null);
+    console.log("Update user status response:", response.data);
+    return response.data.user;
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    setAuthToken(null);
+    throw error;
+  }
+};
+
+// Delete user (admin only)
+export const deleteUser = async (userId: string, token: string) => {
+  try {
+    console.log(`Deleting user with ID: ${userId}`);
+    setAuthToken(token);
+    const response = await axios.delete(`/users/${userId}`);
+    setAuthToken(null);
+    console.log("Delete user response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    setAuthToken(null);
+    throw error;
+  }
+};
 
 // Get all products
 export const getAllProducts = async (filters: Record<string, any> = {}) => {
@@ -68,7 +145,6 @@ export const getFeaturedProducts = async () => {
   }
 };
 
-// Get product by ID
 // Get product by ID
 export const getProductById = async (id: string) => {
   try {
@@ -272,5 +348,9 @@ export default {
   addProductReview,
   getAllProductsForAdmin,
   updateProductStatus,
-  deleteProductAdmin
+  deleteProductAdmin,
+  fetchAllUsers,
+  fetchAllSellers,
+  updateUserStatus,
+  deleteUser
 };
