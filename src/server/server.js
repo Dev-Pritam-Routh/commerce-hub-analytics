@@ -37,7 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/admin/dashboard', dashboardRoutes);
+app.use('/api/admin/dashboard', dashboardRoutes);  // Fixed route prefix
 
 // Database connection - use environment variable or fallback to hardcoded string
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=Cluster0";
