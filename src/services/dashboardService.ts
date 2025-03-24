@@ -23,6 +23,7 @@ export interface DashboardOverview {
   totalRevenue: number;
   recentOrders: any[];
   recentOrdersCount: number;
+  orderStatusData?: { name: string; value: number }[];
 }
 
 // Interface for sales data

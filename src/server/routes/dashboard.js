@@ -79,13 +79,16 @@ router.get('/overview', auth, adminOnly, async (req, res) => {
     const totalUsers = await User.countDocuments();
     const totalOrders = await Order.countDocuments();
     
-    // Calculate total revenue
+    // Calculate total revenue - Fixed to ensure we get a number even if no orders
     const revenueData = await Order.aggregate([
       { $match: { isPaid: true } },
       { $group: { _id: null, totalRevenue: { $sum: '$totalPrice' } } }
     ]);
     
-    const totalRevenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
+    let totalRevenue = 0;
+    if (revenueData && revenueData.length > 0) {
+      totalRevenue = revenueData[0].totalRevenue || 0;
+    }
     
     // Get recent orders (last 7 days)
     const sevenDaysAgo = new Date();
@@ -96,12 +99,28 @@ router.get('/overview', auth, adminOnly, async (req, res) => {
     })
     .sort({ createdAt: -1 })
     .populate('user', 'name email')
-    .populate('products.product', 'name price')
     .limit(10);
     
     const recentOrdersCount = await Order.countDocuments({
       createdAt: { $gte: sevenDaysAgo }
     });
+    
+    // Get order status distribution for the dashboard
+    const orderStatusData = await Order.aggregate([
+      { 
+        $group: { 
+          _id: '$status', 
+          count: { $sum: 1 } 
+        } 
+      },
+      {
+        $project: {
+          _id: 0,
+          name: '$_id',
+          value: '$count'
+        }
+      }
+    ]);
     
     // Prepare response data
     const responseData = {
@@ -111,7 +130,8 @@ router.get('/overview', auth, adminOnly, async (req, res) => {
         totalOrders,
         totalRevenue,
         recentOrders,
-        recentOrdersCount
+        recentOrdersCount,
+        orderStatusData
       }
     };
     
@@ -173,26 +193,95 @@ router.get('/sales', auth, adminOnly, paginate, async (req, res) => {
       startDate.setMonth(startDate.getMonth() - dateRange);
     }
     
-    // Get sales trends over time
+    // Get sales trends over time - Fixed to correctly format dates
     const salesTrends = await Order.aggregate([
-      { $match: { createdAt: { $gte: startDate }, isPaid: true } },
-      { $group: {
+      { $match: { createdAt: { $gte: startDate } } },
+      { 
+        $group: {
           _id: groupBy,
           sales: { $sum: '$totalPrice' },
           count: { $sum: 1 }
         }
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1, '_id.week': 1 } },
-      { $project: {
+      {
+        $project: {
           _id: 0,
           date: {
-            $dateToString: { format: dateFormat, date: '$createdAt' }
+            $cond: {
+              if: { $eq: [timeFrame, 'daily'] },
+              then: { 
+                $dateToString: { 
+                  format: '%Y-%m-%d', 
+                  date: { 
+                    $dateFromParts: { 
+                      year: '$_id.year', 
+                      month: '$_id.month', 
+                      day: '$_id.day' 
+                    } 
+                  } 
+                }
+              },
+              else: {
+                $cond: {
+                  if: { $eq: [timeFrame, 'weekly'] },
+                  then: { 
+                    $concat: [
+                      { $toString: '$_id.year' }, 
+                      '-W', 
+                      { $toString: '$_id.week' }
+                    ]
+                  },
+                  else: { 
+                    $concat: [
+                      { $toString: '$_id.year' }, 
+                      '-', 
+                      { 
+                        $cond: {
+                          if: { $lt: ['$_id.month', 10] },
+                          then: { $concat: ['0', { $toString: '$_id.month' }] },
+                          else: { $toString: '$_id.month' }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
           },
           sales: 1,
           count: 1
         }
       }
     ]);
+
+    // Make sure we have entries for all periods, even if no sales
+    const allPeriods = [];
+    if (timeFrame === 'daily') {
+      for (let i = 0; i < dateRange; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        if (!salesTrends.find(trend => trend.date === dateStr)) {
+          allPeriods.push({ date: dateStr, sales: 0, count: 0 });
+        }
+      }
+    } else if (timeFrame === 'monthly') {
+      for (let i = 0; i < dateRange; i++) {
+        const date = new Date(startDate);
+        date.setMonth(date.getMonth() + i);
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const monthStr = month < 10 ? `0${month}` : `${month}`;
+        const dateStr = `${year}-${monthStr}`;
+        if (!salesTrends.find(trend => trend.date === dateStr)) {
+          allPeriods.push({ date: dateStr, sales: 0, count: 0 });
+        }
+      }
+    }
+    
+    // Combine actual data with placeholder data and sort
+    const combinedSalesTrends = [...salesTrends, ...allPeriods].sort((a, b) => a.date.localeCompare(b.date));
     
     // Get top selling products
     const topSellingProducts = await Order.aggregate([
@@ -241,7 +330,7 @@ router.get('/sales', auth, adminOnly, paginate, async (req, res) => {
       { $sort: { totalSales: -1 } },
       { $project: {
           _id: 0,
-          category: '$_id',
+          category: { $ifNull: ['$_id', 'Uncategorized'] },
           totalSales: 1,
           count: 1
         }
@@ -252,7 +341,7 @@ router.get('/sales', auth, adminOnly, paginate, async (req, res) => {
     const responseData = {
       success: true,
       data: {
-        salesTrends,
+        salesTrends: combinedSalesTrends,
         topSellingProducts,
         salesByCategory,
         timeFrame

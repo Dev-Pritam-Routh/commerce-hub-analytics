@@ -207,6 +207,17 @@ const AdminDashboardPage = () => {
     }
   };
 
+  // Default order status data in case the backend doesn't provide it
+  const defaultOrderStatusData = [
+    { name: 'Pending', value: 48 },
+    { name: 'Processing', value: 36 },
+    { name: 'Shipped', value: 58 },
+    { name: 'Delivered', value: 982 },
+    { name: 'Cancelled', value: 124 }
+  ];
+
+  // Use the order status data from the backend if available, otherwise fall back to default
+  const orderStatusData = overviewData?.orderStatusData || defaultOrderStatusData;
   
   return (
     <div className="px-4 py-6 max-w-7xl mx-auto">
@@ -354,13 +365,7 @@ const AdminDashboardPage = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={[
-                            { name: 'Pending', value: 48 },
-                            { name: 'Processing', value: 36 },
-                            { name: 'Shipped', value: 58 },
-                            { name: 'Delivered', value: 982 },
-                            { name: 'Cancelled', value: 124 }
-                          ]}
+                          data={orderStatusData}
                           cx="50%"
                           cy="50%"
                           innerRadius={60}
@@ -368,9 +373,10 @@ const AdminDashboardPage = () => {
                           fill="#8884d8"
                           paddingAngle={5}
                           dataKey="value"
+                          nameKey="name"
                           label
                         >
-                          {[...Array(5)].map((_, index) => (
+                          {orderStatusData.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
