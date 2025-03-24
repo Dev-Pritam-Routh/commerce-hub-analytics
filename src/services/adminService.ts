@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
@@ -45,7 +46,7 @@ export interface User {
 }
 
 // Fetch all users (admin only)
-export const fetchAllUsers = async (token: string) => {
+const fetchAllUsers = async (token: string) => {
   try {
     console.log("Fetching all users");
     setAuthToken(token);
@@ -61,7 +62,7 @@ export const fetchAllUsers = async (token: string) => {
 };
 
 // Fetch all sellers (admin only)
-export const fetchAllSellers = async (token: string) => {
+const fetchAllSellers = async (token: string) => {
   try {
     console.log("Fetching all sellers");
     setAuthToken(token);
@@ -77,7 +78,7 @@ export const fetchAllSellers = async (token: string) => {
 };
 
 // Update user status (admin only)
-export const updateUserStatus = async (userId: string, status: 'active' | 'inactive', token: string) => {
+const updateUserStatus = async (userId: string, status: 'active' | 'inactive', token: string) => {
   try {
     console.log(`Updating user ${userId} status to ${status}`);
     setAuthToken(token);
@@ -93,7 +94,7 @@ export const updateUserStatus = async (userId: string, status: 'active' | 'inact
 };
 
 // Delete user (admin only)
-export const deleteUser = async (userId: string, token: string) => {
+const deleteUser = async (userId: string, token: string) => {
   try {
     console.log(`Deleting user with ID: ${userId}`);
     setAuthToken(token);
@@ -109,7 +110,7 @@ export const deleteUser = async (userId: string, token: string) => {
 };
 
 // Get all products
-export const getAllProducts = async (filters: Record<string, any> = {}) => {
+const getAllProducts = async (filters: Record<string, any> = {}) => {
   try {
     // Build query string from filters
     const queryParams = new URLSearchParams();
@@ -132,7 +133,7 @@ export const getAllProducts = async (filters: Record<string, any> = {}) => {
 };
 
 // Get featured products
-export const getFeaturedProducts = async () => {
+const getFeaturedProducts = async () => {
   try {
     console.log("Fetching featured products");
     const response = await axios.get('/products?featured=true');
@@ -145,7 +146,7 @@ export const getFeaturedProducts = async () => {
 };
 
 // Get product by ID
-export const getProductById = async (id: string) => {
+const getProductById = async (id: string) => {
   try {
     if (!id) {
       throw new Error('Product ID is required');
@@ -160,9 +161,8 @@ export const getProductById = async (id: string) => {
   }
 };
 
-
 // Add a new product (requires authentication)
-export const addProduct = async (productData: Product, token: string) => {
+const addProduct = async (productData: Product, token: string) => {
   try {
     console.log("Adding product with token:", token ? "Token exists" : "No token");
     console.log("Product data being sent:", productData);
@@ -184,7 +184,7 @@ export const addProduct = async (productData: Product, token: string) => {
 };
 
 // Update a product (requires authentication)
-export const updateProduct = async (id: string, productData: Partial<Product>, token: string) => {
+const updateProduct = async (id: string, productData: Partial<Product>, token: string) => {
   try {
     console.log(`Updating product ${id} with data:`, productData);
     setAuthToken(token);
@@ -203,7 +203,7 @@ export const updateProduct = async (id: string, productData: Partial<Product>, t
 };
 
 // Delete a product (requires authentication)
-export const deleteProduct = async (id: string, token: string) => {
+const deleteProduct = async (id: string, token: string) => {
   try {
     console.log(`Deleting product with ID: ${id}`);
     setAuthToken(token);
@@ -222,7 +222,7 @@ export const deleteProduct = async (id: string, token: string) => {
 };
 
 // Get seller products (requires authentication)
-export const getSellerProducts = async (token: string) => {
+const getSellerProducts = async (token: string) => {
   try {
     console.log("Fetching seller's products");
     setAuthToken(token);
@@ -241,7 +241,7 @@ export const getSellerProducts = async (token: string) => {
 };
 
 // Get product statistics (requires authentication)
-export const getProductStats = async (token: string) => {
+const getProductStats = async (token: string) => {
   try {
     console.log("Fetching product statistics");
     setAuthToken(token);
@@ -260,7 +260,7 @@ export const getProductStats = async (token: string) => {
 };
 
 // Add product review (requires authentication)
-export const addProductReview = async (productId: string, reviewData: { rating: number, review: string }, token: string) => {
+const addProductReview = async (productId: string, reviewData: { rating: number, review: string }, token: string) => {
   try {
     console.log(`Adding review for product ${productId}:`, reviewData);
     setAuthToken(token);
@@ -279,7 +279,7 @@ export const addProductReview = async (productId: string, reviewData: { rating: 
 };
 
 // Get all products for admin
-export const getAllProductsForAdmin = async (token: string) => {
+const getAllProductsForAdmin = async (token: string) => {
   try {
     console.log("Fetching all products for admin");
     setAuthToken(token);
@@ -298,7 +298,7 @@ export const getAllProductsForAdmin = async (token: string) => {
 };
 
 // Update product status (admin only)
-export const updateProductStatus = async (productId: string, status: 'active' | 'inactive' | 'archived', token: string) => {
+const updateProductStatus = async (productId: string, status: 'active' | 'inactive' | 'archived', token: string) => {
   try {
     console.log(`Updating product ${productId} status to ${status}`);
     setAuthToken(token);
@@ -317,7 +317,7 @@ export const updateProductStatus = async (productId: string, status: 'active' | 
 };
 
 // Delete product (admin only)
-export const deleteProductAdmin = async (productId: string, token: string) => {
+const deleteProductAdmin = async (productId: string, token: string) => {
   try {
     console.log(`Deleting product with ID: ${productId}`);
     setAuthToken(token);
@@ -335,7 +335,7 @@ export const deleteProductAdmin = async (productId: string, token: string) => {
   }
 };
 
-// Export individual functions as named exports
+// Export all functions as named exports
 export {
   getAllProducts,
   getFeaturedProducts,
