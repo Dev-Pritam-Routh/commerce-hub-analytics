@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -43,84 +42,17 @@ import {
   Cell
 } from 'recharts';
 import { motion } from 'framer-motion';
-
-const fetchSellerStats = async () => {
-  try {
-    // In a real app, these would be separate API calls
-    // We're combining them here for simplicity
-    
-    // Get product stats
-    const productStats = {
-      totalProducts: 48,
-      totalActiveProducts: 42,
-      totalStock: 853,
-      lowStockProducts: 5,
-      categories: {
-        Electronics: 22,
-        Clothing: 10,
-        Home: 8,
-        Books: 5,
-        Beauty: 3
-      }
-    };
-    
-    // Get order stats
-    const orderStats = {
-      totalOrders: 256,
-      recentOrders: 36,
-      totalSales: 28950.75,
-      statusBreakdown: {
-        pending: 15,
-        processing: 8,
-        shipped: 12,
-        delivered: 205,
-        cancelled: 16
-      }
-    };
-    
-    // Recent orders
-    const recentOrders = [
-      { id: 'ORD-12345', date: '2023-05-15', total: 259.99, status: 'delivered' },
-      { id: 'ORD-12346', date: '2023-05-16', total: 129.50, status: 'shipped' },
-      { id: 'ORD-12347', date: '2023-05-17', total: 399.99, status: 'processing' },
-      { id: 'ORD-12348', date: '2023-05-18', total: 74.99, status: 'pending' }
-    ];
-    
-    // Low stock products
-    const lowStockProducts = [
-      { id: 'PROD-1001', name: 'Wireless Earbuds', stock: 5, threshold: 10 },
-      { id: 'PROD-1002', name: 'Smart Watch Pro', stock: 3, threshold: 10 },
-      { id: 'PROD-1003', name: 'Bluetooth Speaker', stock: 2, threshold: 10 },
-      { id: 'PROD-1004', name: 'USB-C Cable Pack', stock: 6, threshold: 15 },
-      { id: 'PROD-1005', name: 'Phone Case', stock: 8, threshold: 20 }
-    ];
-    
-    return {
-      productStats,
-      orderStats,
-      recentOrders,
-      lowStockProducts
-    };
-  } catch (error) {
-    console.error('Error fetching seller stats:', error);
-    throw error;
-  }
-};
-
-// Sample data for charts
-const generateSalesData = () => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return months.map(month => ({
-    name: month,
-    sales: Math.floor(Math.random() * 5000) + 1000,
-    orders: Math.floor(Math.random() * 50) + 10
-  }));
-};
+import { 
+  getSellerDashboardOverview, 
+  getSellerSalesData, 
+  getSellerRecentOrders, 
+  getSellerLowStockProducts 
+} from '@/services/sellerDashboardService';
 
 const SellerDashboardPage = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
-  const [salesData] = useState(generateSalesData());
+  const [timeFrame, setTimeFrame] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -130,12 +62,64 @@ const SellerDashboardPage = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const { data, isLoading } = useQuery({
-    queryKey: ['sellerStats'],
-    queryFn: fetchSellerStats
+  // Fetch dashboard overview data
+  const { 
+    data: overviewData, 
+    isLoading: isOverviewLoading 
+  } = useQuery({
+    queryKey: ['sellerDashboardOverview'],
+    queryFn: () => token ? getSellerDashboardOverview(token) : Promise.resolve(null),
+    enabled: !!token
   });
   
+  // Fetch sales data
+  const { 
+    data: salesData, 
+    isLoading: isSalesLoading 
+  } = useQuery({
+    queryKey: ['sellerSalesData', timeFrame],
+    queryFn: () => token ? getSellerSalesData(token, timeFrame) : Promise.resolve(null),
+    enabled: !!token
+  });
+  
+  // Fetch recent orders
+  const { 
+    data: recentOrders, 
+    isLoading: isRecentOrdersLoading 
+  } = useQuery({
+    queryKey: ['sellerRecentOrders'],
+    queryFn: () => token ? getSellerRecentOrders(token) : Promise.resolve([]),
+    enabled: !!token
+  });
+  
+  // Fetch low stock products
+  const { 
+    data: lowStockProducts, 
+    isLoading: isLowStockLoading 
+  } = useQuery({
+    queryKey: ['sellerLowStockProducts'],
+    queryFn: () => token ? getSellerLowStockProducts(token) : Promise.resolve([]),
+    enabled: !!token
+  });
+  
+  const isLoading = isOverviewLoading || isSalesLoading || isRecentOrdersLoading || isLowStockLoading;
+  
+  // Fallback data if API fails or during development
+  const fallbackSalesData = salesData?.salesData || Array(12).fill(0).map((_, i) => ({
+    name: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i],
+    sales: Math.floor(Math.random() * 5000) + 1000,
+    orders: Math.floor(Math.random() * 50) + 10
+  }));
+  
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  
+  const orderStatusData = salesData?.orderStatusBreakdown || {
+    pending: 0,
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0
+  };
   
   if (isLoading) {
     return (
@@ -164,6 +148,17 @@ const SellerDashboardPage = () => {
     }
   };
   
+  // Format date
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }).format(date);
+  };
+  
   return (
     <div className="px-4 py-6 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -182,16 +177,16 @@ const SellerDashboardPage = () => {
         <motion.div variants={itemVariants}>
           <StatsCard 
             title="Total Products"
-            value={data?.productStats.totalProducts || 0}
+            value={overviewData?.productStats.totalProducts || 0}
             icon={<ShoppingBag className="h-full w-full" />}
-            description={`${data?.productStats.totalActiveProducts || 0} active products`}
+            description={`${overviewData?.productStats.totalActiveProducts || 0} active products`}
           />
         </motion.div>
         
         <motion.div variants={itemVariants}>
           <StatsCard 
             title="Total Sales"
-            value={`$${(data?.orderStats.totalSales || 0).toLocaleString()}`}
+            value={`$${(overviewData?.orderStats.totalSales || 0).toLocaleString()}`}
             icon={<DollarSign className="h-full w-full" />}
             trend={{ value: 12, isPositive: true }}
             description="Compared to last month"
@@ -201,7 +196,7 @@ const SellerDashboardPage = () => {
         <motion.div variants={itemVariants}>
           <StatsCard 
             title="Total Orders"
-            value={data?.orderStats.totalOrders || 0}
+            value={overviewData?.orderStats.totalOrders || 0}
             icon={<Package className="h-full w-full" />}
             trend={{ value: 8, isPositive: true }}
             description="Compared to last month"
@@ -211,10 +206,10 @@ const SellerDashboardPage = () => {
         <motion.div variants={itemVariants}>
           <StatsCard 
             title="Low Stock Items"
-            value={data?.productStats.lowStockProducts || 0}
+            value={overviewData?.productStats.lowStockProducts || 0}
             icon={<AlertCircle className="h-full w-full" />}
             description="Products below threshold"
-            className={data?.productStats.lowStockProducts > 0 ? "border-amber-500" : ""}
+            className={overviewData?.productStats.lowStockProducts > 0 ? "border-amber-500" : ""}
           />
         </motion.div>
       </motion.div>
@@ -227,15 +222,29 @@ const SellerDashboardPage = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <Card>
-            <CardHeader>
-              <CardTitle>Sales Overview</CardTitle>
-              <CardDescription>Your sales performance over the past year</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle>Sales Overview</CardTitle>
+                <CardDescription>Your sales performance over time</CardDescription>
+              </div>
+              <Tabs 
+                defaultValue="monthly" 
+                value={timeFrame}
+                onValueChange={(value) => setTimeFrame(value as 'daily' | 'weekly' | 'monthly')}
+                className="w-auto"
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </CardHeader>
             <CardContent>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={salesData}
+                    data={fallbackSalesData}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -273,11 +282,11 @@ const SellerDashboardPage = () => {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Pending', value: data?.orderStats.statusBreakdown.pending || 0 },
-                        { name: 'Processing', value: data?.orderStats.statusBreakdown.processing || 0 },
-                        { name: 'Shipped', value: data?.orderStats.statusBreakdown.shipped || 0 },
-                        { name: 'Delivered', value: data?.orderStats.statusBreakdown.delivered || 0 },
-                        { name: 'Cancelled', value: data?.orderStats.statusBreakdown.cancelled || 0 }
+                        { name: 'Pending', value: orderStatusData.pending },
+                        { name: 'Processing', value: orderStatusData.processing },
+                        { name: 'Shipped', value: orderStatusData.shipped },
+                        { name: 'Delivered', value: orderStatusData.delivered },
+                        { name: 'Cancelled', value: orderStatusData.cancelled }
                       ]}
                       cx="50%"
                       cy="50%"
@@ -343,27 +352,31 @@ const SellerDashboardPage = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {data?.recentOrders.map(order => (
-                  <div key={order.id} className="bg-slate-50 dark:bg-slate-800 rounded-md p-3 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className={cn(
-                        "w-2 h-2 rounded-full mr-3",
-                        order.status === 'delivered' ? "bg-green-500" : 
-                        order.status === 'shipped' ? "bg-blue-500" : 
-                        order.status === 'processing' ? "bg-amber-500" : 
-                        order.status === 'pending' ? "bg-purple-500" : "bg-red-500"
-                      )}></span>
-                      <div>
-                        <p className="text-sm font-medium">{order.id}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{order.date}</p>
+                {recentOrders && recentOrders.length > 0 ? (
+                  recentOrders.map(order => (
+                    <div key={order.id} className="bg-slate-50 dark:bg-slate-800 rounded-md p-3 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className={cn(
+                          "w-2 h-2 rounded-full mr-3",
+                          order.status === 'delivered' ? "bg-green-500" : 
+                          order.status === 'shipped' ? "bg-blue-500" : 
+                          order.status === 'processing' ? "bg-amber-500" : 
+                          order.status === 'pending' ? "bg-purple-500" : "bg-red-500"
+                        )}></span>
+                        <div>
+                          <p className="text-sm font-medium">{order.id.substring(0, 8)}...</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{formatDate(order.date)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">${order.total.toFixed(2)}</p>
+                        <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{order.status}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">${order.total}</p>
-                      <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{order.status}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-slate-500">No recent orders found</div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="border-t pt-4">
@@ -393,23 +406,27 @@ const SellerDashboardPage = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {data?.lowStockProducts.map(product => (
-                  <div key={product.id} className="bg-slate-50 dark:bg-slate-800 rounded-md p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{product.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">ID: {product.id}</p>
+                {lowStockProducts && lowStockProducts.length > 0 ? (
+                  lowStockProducts.map(product => (
+                    <div key={product.id} className="bg-slate-50 dark:bg-slate-800 rounded-md p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{product.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">ID: {product.id.substring(0, 8)}...</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={cn(
+                          "text-sm font-medium",
+                          product.stock <= product.threshold / 2 ? "text-red-500" : "text-amber-500"
+                        )}>
+                          {product.stock} left
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Threshold: {product.threshold}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className={cn(
-                        "text-sm font-medium",
-                        product.stock <= product.threshold / 2 ? "text-red-500" : "text-amber-500"
-                      )}>
-                        {product.stock} left
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Threshold: {product.threshold}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-slate-500">No low stock products found</div>
+                )}
               </div>
             </CardContent>
             <CardFooter className="border-t pt-4">

@@ -1,125 +1,59 @@
-
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import User from './models/User.js';
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
-import productRoutes from './routes/products.js';
-import orderRoutes from './routes/orders.js';
-import dashboardRoutes from './routes/dashboard.js';
+import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-// Get directory name in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Initialize the Express application
 const app = express();
 
-// Configure CORS to allow requests from frontend
+// Enable CORS for all routes
 app.use(cors({
-  origin: '*', // Allow all origins in development
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'x-auth-token']
+  origin: 'http://localhost:5173', // Replace with your frontend's origin
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true, // Allow cookies to be sent cross-origin
 }));
 
-// Parse JSON bodies
+// Built-in middleware for parsing JSON and urlencoded data
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// API Routes - make sure all routes are prefixed with /api
+// MongoDB URI from environment variables
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce-app';
+const PORT = process.env.PORT || 5000;
+
+// Connect to MongoDB
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// Import routes
+import authRoutes from './routes/auth.js';
+import usersRoutes from './routes/users.js';
+import productsRoutes from './routes/products.js';
+import ordersRoutes from './routes/orders.js';
+import dashboardRoutes from './routes/dashboard.js';
+import sellerDashboardRoutes from './routes/sellerDashboard.js';
+
+// Use routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/admin/dashboard', dashboardRoutes);  // Fixed route prefix
+app.use('/api/users', usersRoutes);
+app.use('/api/products', productsRoutes);
+app.use('/api/orders', ordersRoutes);
+app.use('/api/admin/dashboard', dashboardRoutes);
+app.use('/api/seller/dashboard', sellerDashboardRoutes);
 
-// Database connection - use environment variable or fallback to hardcoded string
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=Cluster0";
-
-const connectDB = async () => {
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log('MongoDB connected successfully');
-    
-    // Create default admin account
-    await User.createDefaultAdmin();
-    
-    // Create some seller accounts for testing if they don't exist
-    const existingSellers = await User.countDocuments({ role: 'seller' });
-    if (existingSellers === 0) {
-      console.log('Creating sample seller accounts');
-      const sampleSellers = [
-        {
-          name: 'John Seller',
-          email: 'john.seller@example.com',
-          password: 'seller123',
-          role: 'seller',
-          status: 'active',
-          phone: '123-456-7890',
-          productsCount: 12,
-          revenue: 5240
-        },
-        {
-          name: 'Jane Merchant',
-          email: 'jane.merchant@example.com',
-          password: 'seller123',
-          role: 'seller',
-          status: 'active',
-          phone: '987-654-3210',
-          productsCount: 8,
-          revenue: 3150
-        }
-      ];
-      
-      for (const seller of sampleSellers) {
-        await User.create(seller);
-      }
-      console.log('Sample seller accounts created successfully');
-    }
-  } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    process.exit(1);
-  }
-};
-
-connectDB();
-
-// Handle 404 errors for API routes
-app.use('/api/*', (req, res) => {
-  console.log(`Route not found: ${req.originalUrl}`);
-  res.status(404).json({
-    success: false,
-    message: `API route not found: ${req.originalUrl}`
-  });
-});
-
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../dist')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../../dist', 'index.html'));
-  });
-}
-
-// Error handler middleware
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    success: false,
-    error: err.message || 'Server Error'
-  });
+  res.status(500).send('Something broke!');
 });
 
-const PORT = process.env.PORT || 5000;
+// Start the server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`API available at http://localhost:${PORT}/api`);
+  console.log(`Server is running on port ${PORT}`);
 });
