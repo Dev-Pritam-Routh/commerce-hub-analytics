@@ -20,7 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB URI from environment variables
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce-app';
+const MONGODB_URI = "mongodb+srv://pritamrouth2003:FUsM0dNuQo2Qaxft@cluster0.kf6y8.mongodb.net/ecommerce?retryWrites=true&w=majority&appName=Cluster0";
 const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
