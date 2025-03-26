@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -63,7 +64,7 @@
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted-foreground: 215 20.2% 75%; /* Increased lightness for better contrast */
 
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
@@ -140,6 +141,19 @@
   
   .pulse-gold {
     animation: pulse-gold 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Dark mode specific utility classes for better contrast */
+  .dark-text-high-contrast {
+    @apply dark:text-slate-200;
+  }
+  
+  .dark-border-visible {
+    @apply dark:border-slate-600;
+  }
+  
+  .dark-bg-deeper {
+    @apply dark:bg-slate-900;
   }
   
   @keyframes pulse-gold {
