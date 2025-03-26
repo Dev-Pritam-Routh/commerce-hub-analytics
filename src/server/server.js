@@ -10,7 +10,7 @@ const app = express();
 
 // Enable CORS for all routes
 app.use(cors({
-  origin: 'http://localhost:5173', // Replace with your frontend's origin
+  origin: ['http://localhost:5173', 'http://localhost:8080'], // Replace with your frontend's origin
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true, // Allow cookies to be sent cross-origin
 }));

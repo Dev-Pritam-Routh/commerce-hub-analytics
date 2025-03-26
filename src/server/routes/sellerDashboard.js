@@ -235,20 +235,22 @@ function generateSalesData(orders, timeFrame, sellerId) {
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
+      // Replace this section in the generateSalesData function
+      // Inside the daily timeframe block
       const dayStr = date.toISOString().split('T')[0];
-      
+            
       // Filter orders for this day
-      const dayOrders = orders.filter(order => {
+      const dayOrdersFiltered = orders.filter(order => {
         const orderDate = new Date(order.createdAt);
         return orderDate.toISOString().split('T')[0] === dayStr;
       });
-      
+
       // Calculate sales for this day
       let daySales = 0;
-      let dayOrders = 0;
-      
-      dayOrders.forEach(order => {
-        dayOrders++;
+      let dayOrderCount = 0;
+
+      dayOrdersFiltered.forEach(order => {
+        dayOrderCount++;
         order.products.forEach(item => {
           if (item.product && 
               item.product.seller && 
@@ -257,12 +259,13 @@ function generateSalesData(orders, timeFrame, sellerId) {
           }
         });
       });
-      
+
       salesData.push({
         name: new Date(dayStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         sales: daySales,
-        orders: dayOrders
+        orders: dayOrderCount
       });
+
     }
   } else if (timeFrame === 'weekly') {
     // Last 8 weeks
