@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { toast } from '@/components/ui/use-toast';
@@ -9,11 +10,21 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 axios.defaults.baseURL = API_URL;
 axios.defaults.withCredentials = false; // No need for credentials for this API
 
+interface Address {
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 interface User {
   id: string;
   name: string;
   email: string;
   role: 'user' | 'seller' | 'admin';
+  phone?: string;
+  address?: Address;
 }
 
 interface AuthContextType {
@@ -22,7 +33,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role?: string) => Promise<void>;
+  register: (
+    name: string, 
+    email: string, 
+    password: string, 
+    role?: string,
+    phone?: string,
+    address?: Address
+  ) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<void>;
 }
@@ -62,7 +80,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             id: res.data.user._id,
             name: res.data.user.name,
             email: res.data.user.email,
-            role: res.data.user.role
+            role: res.data.user.role,
+            phone: res.data.user.phone,
+            address: res.data.user.address
           });
           setIsAuthenticated(true);
         } else {
@@ -104,7 +124,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          phone: user.phone,
+          address: user.address
         });
         setIsAuthenticated(true);
         toast({
@@ -129,12 +151,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Register function
-  const register = async (name: string, email: string, password: string, role = 'user') => {
+  const register = async (
+    name: string, 
+    email: string, 
+    password: string, 
+    role = 'user',
+    phone?: string,
+    address?: Address
+  ) => {
     try {
       setIsLoading(true);
       console.log('Registering user:', email, 'with role:', role);
       
-      const res = await axios.post('/auth/register', { name, email, password, role });
+      const userData = {
+        name,
+        email,
+        password,
+        role,
+        ...(phone && { phone }),
+        ...(address && { address })
+      };
+      
+      const res = await axios.post('/auth/register', userData);
       console.log('Register response:', res.data);
       
       if (res.data && res.data.success) {
@@ -145,7 +183,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          phone: user.phone,
+          address: user.address
         });
         setIsAuthenticated(true);
         toast({

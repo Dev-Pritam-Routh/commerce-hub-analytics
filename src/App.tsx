@@ -1,5 +1,4 @@
 
-
 import { Toaster } from 'sonner';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +15,7 @@ import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import SellerRegisterPage from "./pages/SellerRegisterPage";
 import NotFound from "./pages/NotFound";
 
 // User Pages
@@ -64,6 +64,7 @@ const App = () => (
                 <Route path="products/:id" element={<ProductDetailPage />} />
                 <Route path="login" element={<LoginPage />} />
                 <Route path="register" element={<RegisterPage />} />
+                <Route path="seller/register" element={<SellerRegisterPage />} />
                 
                 {/* User Routes */}
                 <Route element={<ProtectedRoute />}>
