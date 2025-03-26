@@ -37,6 +37,15 @@ const sellerFormSchema = z.object({
 
 type SellerFormValues = z.infer<typeof sellerFormSchema>;
 
+// Define the Address interface to match what's expected in AuthContext
+interface Address {
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 const SellerRegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -66,14 +75,23 @@ const SellerRegisterPage = () => {
     try {
       setLoading(true);
       
-      // Register the seller
+      // Ensure all address fields are provided
+      const address: Address = {
+        street: values.address.street,
+        city: values.address.city,
+        state: values.address.state,
+        postalCode: values.address.postalCode,
+        country: values.address.country
+      };
+      
+      // Register the seller with fully defined address
       await register(
         values.name, 
         values.email, 
         values.password, 
         'seller',
         values.phone,
-        values.address
+        address
       );
       
       toast.success('Seller account created successfully!');
