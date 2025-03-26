@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -16,7 +15,6 @@ const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('user');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -36,7 +34,7 @@ const RegisterPage = () => {
     
     try {
       setLoading(true);
-      await register(name, email, password, role);
+      await register(name, email, password, 'user');
       navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
@@ -54,9 +52,9 @@ const RegisterPage = () => {
       >
         <Card className="shadow-lg border-slate-200 dark:border-slate-700">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">Create a Customer Account</CardTitle>
             <CardDescription className="text-center">
-              Enter your details to sign up for CommerceHub
+              Sign up to shop and explore products on CommerceHub
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -117,36 +115,36 @@ const RegisterPage = () => {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="role">Account Type</Label>
-                <Select
-                  value={role}
-                  onValueChange={(value) => setRole(value)}
-                  disabled={loading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select account type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">Customer</SelectItem>
-                    <SelectItem value="seller">Seller</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {role === 'seller' ? 
-                    "Create a seller account to list and sell products on our platform." : 
-                    "Create a customer account to shop and place orders."}
-                </p>
-              </div>
-              
               <Button 
                 type="submit" 
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? <LoadingSpinner size="sm" /> : 'Create Account'}
+                {loading ? <LoadingSpinner size="sm" /> : 'Create Customer Account'}
               </Button>
             </form>
+            
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-300 dark:border-slate-600" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Are you a seller?</p>
+              <Button 
+                variant="outline" 
+                className="mt-2 w-full"
+                onClick={() => navigate('/seller/register')}
+              >
+                Register as a Seller
+              </Button>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-sm text-center text-slate-500 dark:text-slate-400">
