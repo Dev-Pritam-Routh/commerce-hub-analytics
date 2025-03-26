@@ -126,7 +126,7 @@ const SellerOrdersPage = () => {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-grow relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Search orders by ID or customer..." className="w-full pl-10 pr-4 py-2 border rounded-md" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="Search orders by ID or customer..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-md bg-gray-600" />
           </div>
           <div className="w-full sm:w-48">
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full p-2 border rounded-md bg-gray-600">
