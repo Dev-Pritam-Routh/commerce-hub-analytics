@@ -6,20 +6,39 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Image, RefreshCw, Bot } from 'lucide-react';
+import { Send, Image, RefreshCw, Bot, ExternalLink } from 'lucide-react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { getProductById } from '@/services/productService';
 
 // Define the message interface
 interface ChatMessage {
   role: 'assistant' | 'user';
   content: string;
   timestamp: string;
+  productInfo?: {
+    id: string;
+    name: string;
+    price: number;
+    image: string;
+    category: string;
+  };
+}
+
+// Product info interface
+interface ProductInfo {
+  _id: string;
+  name: string;
+  price: number;
+  images: string[];
+  category: string;
 }
 
 const AssistantPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -102,6 +121,56 @@ const AssistantPage = () => {
     }
   };
 
+  // Parse product IDs from message content
+  const parseProductIds = (content: string): string[] => {
+    // Look for product IDs in the format "Product ID: XXXX - productName"
+    const regex = /Product ID: ([a-f0-9]{24})/g;
+    const matches = [...content.matchAll(regex)];
+    return matches.map(match => match[1]);
+  };
+
+  // Fetch product information for a product ID
+  const fetchProductInfo = async (productId: string): Promise<ProductInfo | null> => {
+    try {
+      const product = await getProductById(productId);
+      return product;
+    } catch (error) {
+      console.error(`Error fetching product ${productId}:`, error);
+      return null;
+    }
+  };
+
+  // Process message to add product info
+  const processMessageWithProductInfo = async (message: ChatMessage): Promise<ChatMessage> => {
+    if (message.role !== 'assistant') return message;
+
+    const productIds = parseProductIds(message.content);
+    if (productIds.length === 0) return message;
+
+    try {
+      // Just get the first product for simplicity
+      const productId = productIds[0];
+      const productInfo = await fetchProductInfo(productId);
+      
+      if (productInfo) {
+        return {
+          ...message,
+          productInfo: {
+            id: productInfo._id,
+            name: productInfo.name,
+            price: productInfo.price,
+            image: productInfo.images[0],
+            category: productInfo.category
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error processing product info:', error);
+    }
+
+    return message;
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -152,7 +221,10 @@ const AssistantPage = () => {
           content: response.data.message,
           timestamp: new Date().toISOString()
         };
-        setMessages(prev => [...prev, assistantMessage]);
+        
+        // Process the message to add product info if any
+        const processedMessage = await processMessageWithProductInfo(assistantMessage);
+        setMessages(prev => [...prev, processedMessage]);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -167,6 +239,10 @@ const AssistantPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleProductClick = (productId: string) => {
+    navigate(`/products/${productId}`);
   };
 
   const handleRestart = () => {
@@ -224,6 +300,34 @@ const AssistantPage = () => {
                     >
                       {new Date(message.timestamp).toLocaleTimeString()}
                     </div>
+                    
+                    {/* Product info card */}
+                    {message.productInfo && (
+                      <div 
+                        className="mt-3 p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
+                        onClick={() => handleProductClick(message.productInfo!.id)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {message.productInfo.image && (
+                            <img 
+                              src={message.productInfo.image} 
+                              alt={message.productInfo.name} 
+                              className="w-16 h-16 object-cover rounded-md" 
+                            />
+                          )}
+                          <div>
+                            <h4 className="font-medium text-slate-900 dark:text-white">{message.productInfo.name}</h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Category: {message.productInfo.category}</p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="font-semibold text-primary">${message.productInfo.price.toFixed(2)}</p>
+                              <span className="text-xs flex items-center text-primary">
+                                View details <ExternalLink className="ml-1 h-3 w-3" />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               ))}
