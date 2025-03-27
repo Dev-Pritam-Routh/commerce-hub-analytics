@@ -12,7 +12,6 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getProductById } from '@/services/productService';
-import config from '@/config';
 
 // Define the message interface
 interface ChatMessage {
@@ -49,8 +48,8 @@ const AssistantPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // API URL from config
-  const API_URL = config.chatApiUrl;
+  // API URL - this should point to your API server
+  const API_URL = 'http://localhost:5000';
 
   // Create a new chat session when the component mounts
   useEffect(() => {
@@ -103,12 +102,6 @@ const AssistantPage = () => {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Check file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size exceeds 5MB limit. Please choose a smaller image.');
-        return;
-      }
-      
       setImageFile(file);
       
       // Create preview for the image
@@ -178,23 +171,6 @@ const AssistantPage = () => {
     return message;
   };
 
-  const convertImageToBase64 = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          // Remove the data:image/jpeg;base64, part
-          const base64String = reader.result.split(',')[1];
-          resolve(base64String);
-        } else {
-          reject(new Error('Failed to convert image to base64'));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -222,26 +198,21 @@ const AssistantPage = () => {
       
       // If we have an image file, encode it as base64
       if (imageFile) {
-        try {
-          const base64String = await convertImageToBase64(imageFile);
-          requestData.image_data = base64String;
-          
-          console.log('Image data prepared for upload. Size:', base64String.length);
-          clearImage(); // Clear the image after sending
-        } catch (error) {
-          console.error('Error converting image to base64:', error);
-          toast.error('Failed to process image. Please try again.');
-          setLoading(false);
-          return;
-        }
+        const reader = new FileReader();
+        const imageBase64Promise = new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64String = reader.result as string;
+            resolve(base64String.split(',')[1]); // Remove the data:image/jpeg;base64, part
+          };
+          reader.readAsDataURL(imageFile);
+        });
+        
+        requestData.image_data = await imageBase64Promise;
+        clearImage(); // Clear the image after sending
       }
-      
-      console.log('Sending request to:', `${API_URL}/api/chat/message`);
       
       // Send the message to the API
       const response = await axios.post(`${API_URL}/api/chat/message`, requestData);
-      
-      console.log('Received response:', response.data);
       
       // Add assistant response to chat
       if (response.data && response.data.message) {
