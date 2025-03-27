@@ -3,24 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { Button } from './ui/button';
-import { ShoppingCart, Menu, User, Package, LogOut, BarChart, ShoppingBag, Users, Home, Search, X } from 'lucide-react';
+import { ShoppingCart, Menu, User, Package, LogOut, BarChart, ShoppingBag, Users, Home, Search, X, Bot } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from './ThemeToggle';
+
 const Header = () => {
-  const {
-    user,
-    isAuthenticated,
-    logout
-  } = useAuth();
-  const {
-    totalItems
-  } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
+  const { totalItems } = useCart();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
+
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 10) {
@@ -32,20 +28,25 @@ const Header = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
     }
   };
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
   const handleLogout = () => {
     logout();
     navigate('/');
   };
-  return <header className={cn("fixed top-4 left-0 right-0 z-50 transition-all duration-300 py-3 mx-auto", isScrolled ? "max-w-[95%] lg:max-w-[90%] px-6" : "max-w-full px-6 md:px-10", isScrolled ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg shadow-gold-sm dark:shadow-gold rounded-full" : "bg-transparent")}>
+
+  return (
+    <header className={cn("fixed top-4 left-0 right-0 z-50 transition-all duration-300 py-3 mx-auto", isScrolled ? "max-w-[95%] lg:max-w-[90%] px-6" : "max-w-full px-6 md:px-10", isScrolled ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg shadow-gold-sm dark:shadow-gold rounded-full" : "bg-transparent")}>
       <div className="flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="text-2xl font-bold font-serif tracking-tight text-primary dark:text-primary px-[10px]">
@@ -56,6 +57,10 @@ const Header = () => {
         <nav className="hidden md:flex items-center space-x-8">
           <Link to="/" className="nav-link font-medium text-slate-900 dark:text-white">Home</Link>
           <Link to="/products" className="nav-link font-medium text-slate-900 dark:text-white">Products</Link>
+          <Link to="/assistant" className="nav-link font-medium text-slate-900 dark:text-white flex items-center">
+            <Bot className="h-4 w-4 mr-1" />
+            Assistant
+          </Link>
           {isAuthenticated && <Link to="/orders" className="nav-link font-medium text-slate-900 dark:text-white">Orders</Link>}
         </nav>
 
@@ -64,7 +69,13 @@ const Header = () => {
           <form onSubmit={handleSearch} className="w-full">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="Search products..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-primary focus:ring-1 focus:ring-primary transition-all" />
+              <input 
+                type="text" 
+                placeholder="Search products..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+                className="w-full pl-10 pr-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+              />
             </div>
           </form>
         </div>
@@ -75,17 +86,33 @@ const Header = () => {
           <ThemeToggle />
           
           {/* Cart */}
-          <Link to="/cart" className={cn("relative w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300", isScrolled ? "bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/50" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700")}>
+          <Link 
+            to="/cart" 
+            className={cn(
+              "relative w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300", 
+              isScrolled ? "bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/50" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+            )}
+          >
             <ShoppingCart className="w-5 h-5 text-slate-800 dark:text-primary" />
-            {totalItems > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary dark:bg-primary text-white dark:text-slate-900 text-xs flex items-center justify-center font-medium">
+            {totalItems > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary dark:bg-primary text-white dark:text-slate-900 text-xs flex items-center justify-center font-medium">
                 {totalItems}
-              </span>}
+              </span>
+            )}
           </Link>
 
           {/* User Menu */}
-          {isAuthenticated ? <DropdownMenu>
+          {isAuthenticated ? (
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300", isScrolled ? "bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/50" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700")}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300", 
+                    isScrolled ? "bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/50" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+                  )}
+                >
                   <User className="w-5 h-5 text-slate-800 dark:text-primary" />
                 </Button>
               </DropdownMenuTrigger>
@@ -175,18 +202,31 @@ const Header = () => {
                   <span>Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu> : <div className="hidden md:flex items-center space-x-2">
+            </DropdownMenu>
+          ) : (
+            <div className="hidden md:flex items-center space-x-2">
               <Button variant="outline" size="sm" onClick={() => navigate('/login')} className="font-medium">
                 Login
               </Button>
               <Button size="sm" onClick={() => navigate('/register')} className="font-medium">
                 Register
               </Button>
-            </div>}
+            </div>
+          )}
 
           {/* Mobile Menu Button */}
-          <button className={cn("md:hidden w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-300", isScrolled ? "bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/50" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700")} onClick={toggleMenu}>
-            {isMenuOpen ? <X className="w-5 h-5 text-slate-800 dark:text-primary" /> : <Menu className="w-5 h-5 text-slate-800 dark:text-primary" />}
+          <button 
+            className={cn(
+              "md:hidden w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-300", 
+              isScrolled ? "bg-transparent hover:bg-slate-100/50 dark:hover:bg-slate-800/50" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
+            )}
+            onClick={toggleMenu}
+          >
+            {isMenuOpen ? (
+              <X className="w-5 h-5 text-slate-800 dark:text-primary" />
+            ) : (
+              <Menu className="w-5 h-5 text-slate-800 dark:text-primary" />
+            )}
           </button>
         </div>
       </div>
@@ -196,71 +236,93 @@ const Header = () => {
         <form onSubmit={handleSearch} className="w-full">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Search products..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-primary focus:ring-1 focus:ring-primary transition-all" />
+            <input 
+              type="text" 
+              placeholder="Search products..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              className="w-full pl-10 pr-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+            />
           </div>
         </form>
       </div>
 
       {/* Mobile Menu */}
       <AnimatePresence>
-        {isMenuOpen && <motion.div initial={{
-        x: "100%"
-      }} animate={{
-        x: 0
-      }} exit={{
-        x: "100%"
-      }} transition={{
-        duration: 0.3,
-        ease: "easeInOut"
-      }} className="fixed inset-0 z-40 bg-white dark:bg-slate-900 pt-20 px-6">
+        {isMenuOpen && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="fixed inset-0 z-40 bg-white dark:bg-slate-900 pt-20 px-6"
+          >
             <nav className="flex flex-col space-y-8 items-center">
               <Link to="/" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
                 <Home className="inline-block h-5 w-5 mr-2" />
                 Home
               </Link>
-          <Link to="/products" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-            <ShoppingBag className="inline-block h-5 w-5 mr-2" />
-            Products
-          </Link>
-          
-          {isAuthenticated ? <>
-              <Link to="/profile" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-                <User className="inline-block h-5 w-5 mr-2" />
-                Profile
+              <Link to="/products" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                <ShoppingBag className="inline-block h-5 w-5 mr-2" />
+                Products
               </Link>
-              <Link to="/orders" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-                <Package className="inline-block h-5 w-5 mr-2" />
-                Orders
+              <Link to="/assistant" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                <Bot className="inline-block h-5 w-5 mr-2" />
+                Assistant
               </Link>
               
-              {(user?.role === 'seller' || user?.role === 'admin') && <Link to="/seller/dashboard" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-                  <BarChart className="inline-block h-5 w-5 mr-2" />
-                  Seller Dashboard
-                </Link>}
-              
-              {user?.role === 'admin' && <Link to="/admin/dashboard" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-                  <BarChart className="inline-block h-5 w-5 mr-2" />
-                  Admin Dashboard
-                </Link>}
-              
-              <button onClick={() => {
-              handleLogout();
-              setIsMenuOpen(false);
-            }} className="text-xl font-medium text-red-500">
-                <LogOut className="inline-block h-5 w-5 mr-2" />
-                Logout
-              </button>
-            </> : <>
-              <Link to="/login" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-                Login
-              </Link>
-              <Link to="/register" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-                Register
-              </Link>
-            </>}
-        </nav>
-        </motion.div>}
-    </AnimatePresence>
-    </header>;
+              {isAuthenticated ? (
+                <>
+                  <Link to="/profile" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                    <User className="inline-block h-5 w-5 mr-2" />
+                    Profile
+                  </Link>
+                  <Link to="/orders" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                    <Package className="inline-block h-5 w-5 mr-2" />
+                    Orders
+                  </Link>
+                  
+                  {(user?.role === 'seller' || user?.role === 'admin') && (
+                    <Link to="/seller/dashboard" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                      <BarChart className="inline-block h-5 w-5 mr-2" />
+                      Seller Dashboard
+                    </Link>
+                  )}
+                  
+                  {user?.role === 'admin' && (
+                    <Link to="/admin/dashboard" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                      <BarChart className="inline-block h-5 w-5 mr-2" />
+                      Admin Dashboard
+                    </Link>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="text-xl font-medium text-red-500"
+                  >
+                    <LogOut className="inline-block h-5 w-5 mr-2" />
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                    Login
+                  </Link>
+                  <Link to="/register" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
+                    Register
+                  </Link>
+                </>
+              )}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
+  );
 };
+
 export default Header;

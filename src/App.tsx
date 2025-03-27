@@ -16,6 +16,7 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import SellerRegisterPage from "./pages/SellerRegisterPage";
+import AssistantPage from "./pages/AssistantPage";
 import NotFound from "./pages/NotFound";
 
 // User Pages
@@ -65,6 +66,7 @@ const App = () => (
                 <Route path="login" element={<LoginPage />} />
                 <Route path="register" element={<RegisterPage />} />
                 <Route path="seller/register" element={<SellerRegisterPage />} />
+                <Route path="assistant" element={<AssistantPage />} />
                 
                 {/* User Routes */}
                 <Route element={<ProtectedRoute />}>
