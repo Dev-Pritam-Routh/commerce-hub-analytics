@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Set the base URL from environment variable or use default
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://commerce-hub-analytics.onrender.com/api';
 
 // Configure axios to use the API URL
 axios.defaults.baseURL = API_URL;

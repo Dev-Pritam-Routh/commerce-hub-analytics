@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from '@/components/ui/use-toast';
 
 // Configure axios defaults - ensure we're using the correct API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://commerce-hub-analytics.onrender.com/api';
 
 // Set default base URL for all axios requests
 axios.defaults.baseURL = API_URL;
