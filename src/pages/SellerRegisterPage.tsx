@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -105,14 +104,20 @@ const SellerRegisterPage = () => {
   };
   
   return (
-    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center p-4">
+    <div 
+      className="min-h-[calc(100vh-200px)] flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      style={{ 
+        backgroundImage: "url('https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')",
+        backgroundAttachment: "fixed"
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-2xl"
       >
-        <Card className="shadow-lg border-slate-200 dark:border-slate-700">
+        <Card className="shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-slate-200 dark:border-slate-700">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">Create a Seller Account</CardTitle>
             <CardDescription className="text-center">
@@ -135,6 +140,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="John Smith"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -154,6 +160,7 @@ const SellerRegisterPage = () => {
                               type="email"
                               placeholder="you@example.com"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -173,6 +180,7 @@ const SellerRegisterPage = () => {
                               type="password"
                               placeholder="••••••••"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -192,6 +200,7 @@ const SellerRegisterPage = () => {
                               type="password"
                               placeholder="••••••••"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -210,6 +219,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="+1 (555) 123-4567"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -233,6 +243,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="Your Business Name"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -253,6 +264,7 @@ const SellerRegisterPage = () => {
                                 placeholder="Describe your business and what you sell..."
                                 disabled={loading}
                                 rows={3}
+                                className="bg-white/90 dark:bg-slate-800/90"
                                 {...field}
                               />
                             </FormControl>
@@ -278,6 +290,7 @@ const SellerRegisterPage = () => {
                               <Input
                                 placeholder="123 Main St"
                                 disabled={loading}
+                                className="bg-white/90 dark:bg-slate-800/90"
                                 {...field}
                               />
                             </FormControl>
@@ -297,6 +310,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="New York"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -315,6 +329,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="NY"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -333,6 +348,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="10001"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -351,6 +367,7 @@ const SellerRegisterPage = () => {
                             <Input
                               placeholder="United States"
                               disabled={loading}
+                              className="bg-white/90 dark:bg-slate-800/90"
                               {...field}
                             />
                           </FormControl>
@@ -374,7 +391,7 @@ const SellerRegisterPage = () => {
                     <span className="w-full border-t border-slate-300 dark:border-slate-600" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
+                    <span className="bg-white/80 dark:bg-slate-900/80 px-2 text-muted-foreground">
                       Or
                     </span>
                   </div>
@@ -384,7 +401,7 @@ const SellerRegisterPage = () => {
                   <p className="text-sm text-muted-foreground">Looking to shop instead?</p>
                   <Button 
                     variant="outline" 
-                    className="mt-2 w-full"
+                    className="mt-2 w-full bg-white/90 dark:bg-slate-800/90"
                     onClick={() => navigate('/register')}
                     type="button"
                   >
@@ -395,7 +412,7 @@ const SellerRegisterPage = () => {
             </Form>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <div className="text-sm text-center text-slate-500 dark:text-slate-400">
+            <div className="text-sm text-center text-slate-700 dark:text-slate-300">
               Already have an account?{' '}
               <Link 
                 to="/login" 
@@ -405,12 +422,12 @@ const SellerRegisterPage = () => {
               </Link>
             </div>
             
-            <div className="text-xs text-center text-slate-500 dark:text-slate-400">
+            <div className="text-xs text-center text-slate-700 dark:text-slate-300">
               By creating an account, you agree to our{' '}
               <a href="#" className="underline">Terms of Service</a>
               {' '}and{' '}
               <a href="#" className="underline">Privacy Policy</a>.
-            </div>
+              </div>
           </CardFooter>
         </Card>
       </motion.div>
@@ -419,3 +436,4 @@ const SellerRegisterPage = () => {
 };
 
 export default SellerRegisterPage;
+
