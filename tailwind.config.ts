@@ -67,7 +67,7 @@ export default {
 					light: '#F5D76E', // Light gold color
 					DEFAULT: '#D4AF37', // Standard gold color
 					dark: '#B8860B',   // Dark gold color
-				  },
+				},
 			},
 			boxShadow: {
 				'gold': '0 0 15px rgba(212, 175, 55, 0.5)',

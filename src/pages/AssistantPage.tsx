@@ -1,17 +1,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Image, RefreshCw, Bot, ExternalLink } from 'lucide-react';
+import { Bot, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { getProductById } from '@/services/productService';
+import config from '@/config';
+import ChatMessage from '@/components/assistant/ChatMessage';
+import QuickPromptButton from '@/components/assistant/QuickPromptButton';
+import ChatSidebar from '@/components/assistant/ChatSidebar';
+import ChatInput from '@/components/assistant/ChatInput';
+import { useIsMobile } from '@/hooks/use-mobile';
+import ThemeToggle from '@/components/ThemeToggle';
 
 // Define the message interface
 interface ChatMessage {
@@ -36,30 +39,42 @@ interface ProductInfo {
   category: string;
 }
 
+const quickPrompts = [
+  "What are some trending products right now?",
+  "Can you recommend a good laptop for video editing?",
+  "I'm looking for a gift for my mom",
+  "What's your return policy?"
+];
+
 const AssistantPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // API URL - this should point to your API server
-  const API_URL = 'http://localhost:5000';
+  // API URL from config
+  const API_URL = config.assistantApiUrl;
 
   // Create a new chat session when the component mounts
   useEffect(() => {
     createChatSession();
-  }, []);
+    // Close sidebar on mobile by default
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobile]);
 
   // Scroll to bottom of messages
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const createChatSession = async () => {
     try {
@@ -74,7 +89,7 @@ const AssistantPage = () => {
         setMessages([
           {
             role: 'assistant',
-            content: response.data.message || 'Hello! How can I help you today?',
+            content: response.data.message || 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.',
             timestamp: new Date().toISOString()
           }
         ]);
@@ -86,38 +101,12 @@ const AssistantPage = () => {
       setMessages([
         {
           role: 'assistant',
-          content: 'Hello! How can I help you today? (Note: I\'m currently in demo mode)',
+          content: 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations. (Note: I\'m currently in demo mode)',
           timestamp: new Date().toISOString()
         }
       ]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      
-      // Create preview for the image
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const clearImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -171,9 +160,7 @@ const AssistantPage = () => {
     return message;
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSendMessage = async (newMessage: string, imageFile: File | null) => {
     if (!newMessage.trim() && !imageFile) return;
     
     // Add user message to chat
@@ -184,7 +171,6 @@ const AssistantPage = () => {
     };
     
     setMessages(prev => [...prev, userMessage]);
-    setNewMessage('');
     
     // Show typing indicator
     setLoading(true);
@@ -208,7 +194,6 @@ const AssistantPage = () => {
         });
         
         requestData.image_data = await imageBase64Promise;
-        clearImage(); // Clear the image after sending
       }
       
       // Send the message to the API
@@ -241,95 +226,85 @@ const AssistantPage = () => {
     }
   };
 
-  const handleProductClick = (productId: string) => {
-    navigate(`/products/${productId}`);
+  const handleQuickPromptClick = (prompt: string) => {
+    handleSendMessage(prompt, null);
   };
-
-  const handleRestart = () => {
+  
+  const handleNewChat = () => {
     setMessages([]);
     createChatSession();
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(prev => !prev);
+  };
+
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+    <div className="h-screen flex overflow-hidden">
+      {/* Sidebar */}
+      <ChatSidebar 
+        onNewChat={handleNewChat} 
+        isSidebarOpen={isSidebarOpen}
+        toggleSidebar={toggleSidebar}
+      />
+
+      {/* Main chat area */}
+      <div 
+        className={`flex-1 flex flex-col transition-all ${
+          isSidebarOpen && !isMobile ? "ml-[320px]" : "ml-0"
+        }`}
       >
-        <Card className="shadow-lg border-slate-200 dark:border-slate-700 mt-4">
-          <CardContent className="p-0">
-            {/* Chat header */}
-            <div className="p-4 border-b flex items-center justify-between">
-              <div className="flex items-center">
-                <Avatar className="h-10 w-10 bg-primary/10">
-                  <Bot className="h-6 w-6 text-primary" />
+        {/* Header */}
+        <header className="sticky top-0 z-30 h-16 md:h-20 px-4 border-b flex items-center justify-between bg-background">
+          <div className="flex items-center">
+            <button 
+              onClick={toggleSidebar}
+              className="p-2 mr-2 rounded-md hover:bg-accent"
+              aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+            >
+              <ArrowLeft className={`h-5 w-5 transition-transform ${isSidebarOpen ? "rotate-0" : "rotate-180"}`} />
+            </button>
+            <h1 className="text-xl font-bold text-gold">Shopping Assistant</h1>
+          </div>
+          {!isSidebarOpen && <ThemeToggle />}
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center max-w-md"
+              >
+                <Avatar className="h-16 w-16 mx-auto mb-4 bg-gold/10">
+                  <Bot className="h-8 w-8 text-gold" />
                 </Avatar>
-                <div className="ml-3">
-                  <h2 className="text-lg font-semibold">Commerce Assistant</h2>
-                  <p className="text-sm text-muted-foreground">Ask about products, orders, or get help</p>
+                <h2 className="text-2xl font-bold text-gold mb-2">Shopping Assistant</h2>
+                <p className="text-muted-foreground mb-8">
+                  Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {quickPrompts.map((prompt, index) => (
+                    <QuickPromptButton 
+                      key={index} 
+                      prompt={prompt} 
+                      onClick={handleQuickPromptClick}
+                    />
+                  ))}
                 </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleRestart} title="Restart conversation">
-                <RefreshCw className="h-5 w-5" />
-              </Button>
+              </motion.div>
             </div>
-            
-            {/* Chat messages */}
-            <div className="h-[500px] overflow-y-auto p-4 space-y-4">
+          ) : (
+            <div className="max-w-3xl mx-auto space-y-4">
               {messages.map((message, index) => (
-                <motion.div
+                <ChatMessage
                   key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground ml-auto'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    <div className="whitespace-pre-wrap break-words">{message.content}</div>
-                    <div
-                      className={`text-xs mt-1 ${
-                        message.role === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </div>
-                    
-                    {/* Product info card */}
-                    {message.productInfo && (
-                      <div 
-                        className="mt-3 p-2 bg-white dark:bg-slate-800 rounded-md shadow-sm cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"
-                        onClick={() => handleProductClick(message.productInfo!.id)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          {message.productInfo.image && (
-                            <img 
-                              src={message.productInfo.image} 
-                              alt={message.productInfo.name} 
-                              className="w-16 h-16 object-cover rounded-md" 
-                            />
-                          )}
-                          <div>
-                            <h4 className="font-medium text-slate-900 dark:text-white">{message.productInfo.name}</h4>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Category: {message.productInfo.category}</p>
-                            <div className="flex items-center justify-between mt-1">
-                              <p className="font-semibold text-primary">${message.productInfo.price.toFixed(2)}</p>
-                              <span className="text-xs flex items-center text-primary">
-                                View details <ExternalLink className="ml-1 h-3 w-3" />
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+                  role={message.role}
+                  content={message.content}
+                  timestamp={message.timestamp}
+                  productInfo={message.productInfo}
+                />
               ))}
               
               {loading && (
@@ -351,72 +326,13 @@ const AssistantPage = () => {
               
               <div ref={messagesEndRef} />
             </div>
-            
-            {/* Preview image if any */}
-            {imagePreview && (
-              <div className="p-2 border-t">
-                <div className="relative inline-block">
-                  <img 
-                    src={imagePreview} 
-                    alt="Upload preview" 
-                    className="h-16 w-16 object-cover rounded" 
-                  />
-                  <button
-                    onClick={clearImage}
-                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 text-white"
-                  >
-                    <span className="sr-only">Remove image</span>
-                    ✕
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Chat input */}
-            <form onSubmit={handleSendMessage} className="border-t p-4 flex gap-2">
-              <div className="flex-1 relative">
-                <Textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="resize-none min-h-[60px] pr-10"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                />
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="image-upload"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 bottom-2.5"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Image className="h-5 w-5 text-muted-foreground" />
-                </Button>
-              </div>
-              <Button 
-                type="submit" 
-                disabled={loading || (!newMessage.trim() && !imageFile)}
-                className="self-end"
-              >
-                <Send className="h-5 w-5" />
-                <span className="sr-only">Send message</span>
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </motion.div>
+          )}
+        </main>
+
+        <div className="relative">
+          <ChatInput onSendMessage={handleSendMessage} loading={loading} />
+        </div>
+      </div>
     </div>
   );
 };
