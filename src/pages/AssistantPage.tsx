@@ -43,7 +43,7 @@ const quickPrompts = [
   "What are some trending products right now?",
   "Can you recommend a good laptop for video editing?",
   "I'm looking for a gift for my mom",
-  "What's your return policy?"
+  "Show me similar products to this image"
 ];
 
 const AssistantPage = () => {
@@ -112,7 +112,7 @@ const AssistantPage = () => {
 
   // Parse product IDs from message content
   const parseProductIds = (content: string): string[] => {
-    // Look for product IDs in the format "Product ID: XXXX - productName"
+    // Look for product IDs in the format "Product ID: XXXX - productName" or just "Product ID: XXXX"
     const regex = /Product ID: ([a-f0-9]{24})/g;
     const matches = [...content.matchAll(regex)];
     return matches.map(match => match[1]);
@@ -184,16 +184,18 @@ const AssistantPage = () => {
       
       // If we have an image file, encode it as base64
       if (imageFile) {
-        const reader = new FileReader();
-        const imageBase64Promise = new Promise<string>((resolve) => {
+        const base64String = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
           reader.onloadend = () => {
-            const base64String = reader.result as string;
-            resolve(base64String.split(',')[1]); // Remove the data:image/jpeg;base64, part
+            const base64 = reader.result as string;
+            // Extract the base64 data without the prefix
+            const base64Data = base64.split(',')[1];
+            resolve(base64Data);
           };
           reader.readAsDataURL(imageFile);
         });
         
-        requestData.image_data = await imageBase64Promise;
+        requestData.image_data = base64String;
       }
       
       // Send the message to the API

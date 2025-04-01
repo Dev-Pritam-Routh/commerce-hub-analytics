@@ -13,10 +13,11 @@ const QuickPromptButton = ({ prompt, onClick }: QuickPromptButtonProps) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      whileHover={{ scale: 1.02 }}
     >
       <Button 
         variant="outline" 
-        className="w-full text-left justify-start p-4 h-auto whitespace-normal hover:bg-accent hover:text-accent-foreground transition-all shadow-sm"
+        className="w-full text-left justify-start p-4 h-auto whitespace-normal hover:bg-gold/10 hover:text-gold transition-all shadow-sm border-gold/20"
         onClick={() => onClick(prompt)}
       >
         {prompt}

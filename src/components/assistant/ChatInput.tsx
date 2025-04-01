@@ -2,7 +2,8 @@
 import { useState, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Image } from 'lucide-react';
+import { Send, Image, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ChatInputProps {
   onSendMessage: (message: string, imageFile: File | null) => void;
@@ -18,6 +19,18 @@ const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
       setImageFile(file);
       
       // Create preview for the image
@@ -53,7 +66,7 @@ const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
         <Textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type your message..."
+          placeholder={imageFile ? "Describe what you're looking for in this image..." : "Type your message..."}
           className="resize-none min-h-[60px] pr-10"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -76,6 +89,7 @@ const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
           size="sm"
           className="absolute right-2 bottom-2.5"
           onClick={() => fileInputRef.current?.click()}
+          disabled={loading}
         >
           <Image className="h-5 w-5 text-muted-foreground" />
         </Button>
@@ -91,20 +105,21 @@ const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
 
       {/* Preview image if any */}
       {imagePreview && (
-        <div className="absolute bottom-20 left-4 p-2 border rounded-md bg-background">
+        <div className="absolute bottom-20 left-4 p-2 border rounded-md bg-background shadow-md">
           <div className="relative inline-block">
             <img 
               src={imagePreview} 
               alt="Upload preview" 
-              className="h-16 w-16 object-cover rounded" 
+              className="h-20 w-20 object-cover rounded" 
             />
-            <button
+            <Button
               onClick={clearImage}
-              className="absolute -top-2 -right-2 bg-destructive rounded-full p-1 text-destructive-foreground"
-              aria-label="Remove image"
+              size="sm"
+              variant="destructive"
+              className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
             >
-              ✕
-            </button>
+              <X className="h-3 w-3" />
+            </Button>
           </div>
         </div>
       )}
