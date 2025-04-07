@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Plus, MessageSquare } from "lucide-react";
+import { Plus, MessageSquare, History } from "lucide-react";
 import { motion } from "framer-motion";
 import ThemeToggle from "../ThemeToggle";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -9,6 +9,7 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
+  onLoadHistory: () => void;
 }
 
 interface ConversationProps {
@@ -40,7 +41,7 @@ const ConversationItem = ({ title, date, isActive, onClick }: ConversationProps)
   </motion.div>
 );
 
-const ChatSidebar = ({ onNewChat, isSidebarOpen, toggleSidebar }: ChatSidebarProps) => {
+const ChatSidebar = ({ onNewChat, isSidebarOpen, toggleSidebar, onLoadHistory }: ChatSidebarProps) => {
   const isMobile = useIsMobile();
 
   return (
@@ -57,12 +58,22 @@ const ChatSidebar = ({ onNewChat, isSidebarOpen, toggleSidebar }: ChatSidebarPro
           <ThemeToggle />
         </div>
 
-        <Button
-          className="mb-4 bg-gold hover:bg-gold-dark text-black"
-          onClick={onNewChat}
-        >
-          <Plus className="mr-2 h-4 w-4" /> New Chat
-        </Button>
+        <div className="space-y-2 mb-4">
+          <Button
+            className="w-full bg-gold hover:bg-gold-dark text-black"
+            onClick={onNewChat}
+          >
+            <Plus className="mr-2 h-4 w-4" /> New Chat
+          </Button>
+          
+          <Button
+            className="w-full bg-slate-100 hover:bg-slate-200 text-black dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white"
+            onClick={onLoadHistory}
+            variant="outline"
+          >
+            <History className="mr-2 h-4 w-4" /> Load History
+          </Button>
+        </div>
 
         <div className="overflow-y-auto flex-1">
           <ConversationItem

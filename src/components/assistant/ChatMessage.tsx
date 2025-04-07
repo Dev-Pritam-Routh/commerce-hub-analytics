@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 
 interface ProductInfo {
   id: string;
@@ -39,7 +40,9 @@ const ChatMessage = ({ role, content, timestamp, productInfo }: ChatMessageProps
             : 'bg-muted'
         }`}
       >
-        <div className="whitespace-pre-wrap break-words">{content}</div>
+        <div className="whitespace-pre-wrap break-words prose prose-sm dark:prose-invert max-w-none">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
         <div
           className={`text-xs mt-1 ${
             role === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground'
