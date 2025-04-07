@@ -1,24 +1,37 @@
 
 import { Button } from "@/components/ui/button";
-import { Plus, MessageSquare } from "lucide-react";
+import { Plus, MessageSquare, RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
 import ThemeToggle from "../ThemeToggle";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  timestamp: string;
+  lastMessage?: string;
+}
 
 interface ChatSidebarProps {
   onNewChat: () => void;
+  onSelectSession: (sessionId: string) => void;
+  onLoadHistory: () => void;
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
+  sessions: ChatSession[];
+  currentSessionId: string | null;
 }
 
 interface ConversationProps {
+  id: string;
   title: string;
   date: string;
   isActive?: boolean;
   onClick: () => void;
 }
 
-const ConversationItem = ({ title, date, isActive, onClick }: ConversationProps) => (
+const ConversationItem = ({ id, title, date, isActive, onClick }: ConversationProps) => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -40,7 +53,15 @@ const ConversationItem = ({ title, date, isActive, onClick }: ConversationProps)
   </motion.div>
 );
 
-const ChatSidebar = ({ onNewChat, isSidebarOpen, toggleSidebar }: ChatSidebarProps) => {
+const ChatSidebar = ({ 
+  onNewChat, 
+  onSelectSession,
+  onLoadHistory,
+  isSidebarOpen, 
+  toggleSidebar,
+  sessions,
+  currentSessionId
+}: ChatSidebarProps) => {
   const isMobile = useIsMobile();
 
   return (
@@ -57,21 +78,42 @@ const ChatSidebar = ({ onNewChat, isSidebarOpen, toggleSidebar }: ChatSidebarPro
           <ThemeToggle />
         </div>
 
-        <Button
-          className="mb-4 bg-gold hover:bg-gold-dark text-black"
-          onClick={onNewChat}
-        >
-          <Plus className="mr-2 h-4 w-4" /> New Chat
-        </Button>
+        <div className="flex space-x-2 mb-4">
+          <Button
+            className="flex-1 bg-gold hover:bg-gold-dark text-black"
+            onClick={onNewChat}
+          >
+            <Plus className="mr-2 h-4 w-4" /> New Chat
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={onLoadHistory}
+            title="Load chat history"
+            className="px-3"
+          >
+            <RotateCcw className="h-4 w-4" />
+            <span className="sr-only">Load History</span>
+          </Button>
+        </div>
 
         <div className="overflow-y-auto flex-1">
-          <ConversationItem
-            title="New Conversation"
-            date="Today"
-            isActive={true}
-            onClick={() => {}}
-          />
-          {/* More conversation items would go here */}
+          {sessions.length === 0 ? (
+            <div className="text-center text-muted-foreground p-4">
+              No previous conversations
+            </div>
+          ) : (
+            sessions.map((session) => (
+              <ConversationItem
+                key={session.id}
+                id={session.id}
+                title={session.title || "New Conversation"}
+                date={format(new Date(session.timestamp), "MMM d, yyyy")}
+                isActive={session.id === currentSessionId}
+                onClick={() => onSelectSession(session.id)}
+              />
+            ))
+          )}
         </div>
       </div>
     </motion.aside>

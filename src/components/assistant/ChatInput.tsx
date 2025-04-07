@@ -7,10 +7,11 @@ import { toast } from 'sonner';
 
 interface ChatInputProps {
   onSendMessage: (message: string, imageFile: File | null) => void;
+  onImageSearch?: (imageFile: File) => void;
   loading: boolean;
 }
 
-const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
+const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -52,6 +53,13 @@ const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If only image is uploaded (no text) and we have an image search handler
+    if (!newMessage.trim() && imageFile && onImageSearch) {
+      onImageSearch(imageFile);
+      clearImage();
+      return;
+    }
     
     if (!newMessage.trim() && !imageFile) return;
     
@@ -96,7 +104,7 @@ const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
       </div>
       <Button 
         type="submit" 
-        disabled={loading || (!newMessage.trim() && !imageFile)}
+        disabled={loading}
         className="self-end bg-gold hover:bg-gold-dark text-black"
       >
         <Send className="h-5 w-5" />
