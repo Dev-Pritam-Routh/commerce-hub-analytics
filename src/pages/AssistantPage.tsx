@@ -83,31 +83,30 @@ const AssistantPage = () => {
   const createChatSession = async () => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_URL}/api/chat/session`, {
+      const response = await axios.post(`${API_URL}/chat/session`, {
         user_id: user?.id || 'guest',
-        user_email: user?.email || undefined
+        user_email: user?.email || undefined,
       });
-
+  
       if (response.data && response.data.session_id) {
         setSessionId(response.data.session_id);
         setMessages([
           {
             role: 'assistant',
             content: response.data.message || 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.',
-            timestamp: new Date().toISOString()
-          }
+            timestamp: new Date().toISOString(),
+          },
         ]);
       }
     } catch (error) {
       console.error('Error creating chat session:', error);
       toast.error('Failed to connect to the assistant. Please try again later.');
-      // Set default welcome message even if API fails
       setMessages([
         {
           role: 'assistant',
           content: 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations. (Note: I\'m currently in demo mode)',
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       ]);
     } finally {
       setLoading(false);
@@ -132,26 +131,17 @@ const AssistantPage = () => {
   // Handle image search
   const handleImageSearch = async (imageFile: File) => {
     if (!imageFile) return;
-    
+  
     try {
       setLoading(true);
-      // Convert image to base64
       const base64Data = await convertImageToBase64(imageFile);
-      
-      // Call image search endpoint
-      const response = await axios.post(`${API_URL}${config.imageSearchEndpoint}`, {
-        image_data: base64Data
+  
+      const response = await axios.post(`${API_URL}/chat/message`, {
+        session_id: sessionId || 'demo-session',
+        image_data: base64Data,
       });
-      
-      if (response.data && response.data.products) {
-        setImageSearchResults(response.data.products);
-        
-        // Add a user message with the image
-        const userMessage: ChatMessage = {
-          role: 'user',
-          content: "What products are similar to this image?",
-          timestamp: new Date().toISOString()
-        };
+  
+      if (response.data && response.data.message) {
         
         // Add an assistant message with the search results
         const productsList = response.data.products.map((p: ProductInfo) => 
@@ -186,19 +176,20 @@ const AssistantPage = () => {
   // Load full chat history from the backend
   const loadChatHistory = async () => {
     if (!sessionId) return;
-
+  
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/chat/history?session_id=${sessionId}&limit=50`);
-      
+      const response = await axios.get(`${API_URL}/chat/history`, {
+        params: { session_id: sessionId, limit: 50 },
+      });
+  
       if (response.data && response.data.messages) {
-        // Map messages to the local format
         const formattedMessages = response.data.messages.map((msg: any) => ({
           role: msg.role,
           content: msg.content,
-          timestamp: msg.timestamp
+          timestamp: msg.timestamp,
         }));
-        
+  
         setMessages(formattedMessages);
       }
     } catch (error) {
@@ -220,7 +211,7 @@ const AssistantPage = () => {
   // Search products based on a query
   const searchProducts = async (query: string): Promise<any[]> => {
     try {
-      const response = await axios.get(`${API_URL}/api/search?q=${encodeURIComponent(query)}&limit=5`);
+      const response = await axios.get(`${API_URL}/search?q=${encodeURIComponent(query)}&limit=5`);
       return response.data.products || [];
     } catch (error) {
       console.error('Error searching products:', error);
@@ -231,34 +222,28 @@ const AssistantPage = () => {
   // Enhanced handleSendMessage to process products and support image search
   const handleSendMessage = async (newMessage: string, imageFile: File | null) => {
     if (!newMessage.trim() && !imageFile) return;
-    
-    // Add user message to chat
+  
     const userMessage: ChatMessage = {
       role: 'user',
       content: newMessage,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
-    setMessages(prev => [...prev, userMessage]);
-    
-    // Show typing indicator
+  
+    setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
-    
+  
     try {
-      // Prepare request data
       const requestData: any = {
         session_id: sessionId || 'demo-session',
-        message: newMessage
+        message: newMessage,
       };
-      
-      // If we have an image file, encode it as base64
+  
       if (imageFile) {
         const base64String = await convertImageToBase64(imageFile);
         requestData.image_data = base64String;
       }
-      
-      // Send the message to the API
-      const response = await axios.post(`${API_URL}/api/chat/message`, requestData);
+  
+      const response = await axios.post(`${API_URL}/chat/message`, requestData);
       
       // Add assistant response to chat
       if (response.data && response.data.message) {
