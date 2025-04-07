@@ -37,6 +37,8 @@ interface ProductInfo {
   price: number;
   images: string[];
   category: string;
+  product_id?: string;
+  image_url?: string;
 }
 
 const quickPrompts = [
@@ -55,6 +57,7 @@ const AssistantPage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [productQuery, setProductQuery] = useState<string>("");
+  const [imageSearchResults, setImageSearchResults] = useState<ProductInfo[]>([]);
 
   // API URL from config
   const API_URL = config.assistantApiUrl;
@@ -124,6 +127,60 @@ const AssistantPage = () => {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  };
+
+  // Handle image search
+  const handleImageSearch = async (imageFile: File) => {
+    if (!imageFile) return;
+    
+    try {
+      setLoading(true);
+      // Convert image to base64
+      const base64Data = await convertImageToBase64(imageFile);
+      
+      // Call image search endpoint
+      const response = await axios.post(`${API_URL}${config.imageSearchEndpoint}`, {
+        image_data: base64Data
+      });
+      
+      if (response.data && response.data.products) {
+        setImageSearchResults(response.data.products);
+        
+        // Add a user message with the image
+        const userMessage: ChatMessage = {
+          role: 'user',
+          content: "What products are similar to this image?",
+          timestamp: new Date().toISOString()
+        };
+        
+        // Add an assistant message with the search results
+        const productsList = response.data.products.map((p: ProductInfo) => 
+          `- ${p.name} - $${p.price} (Product ID: ${p.product_id || p._id})`
+        ).join('\n');
+        
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: `Here are some products that match your image:\n\n${productsList}`,
+          timestamp: new Date().toISOString(),
+          productInfo: response.data.products[0] ? {
+            id: response.data.products[0].product_id || response.data.products[0]._id,
+            name: response.data.products[0].name,
+            price: response.data.products[0].price,
+            image: response.data.products[0].image_url || (response.data.products[0].images && response.data.products[0].images[0]) || '',
+            category: response.data.products[0].category
+          } : undefined
+        };
+        
+        setMessages(prev => [...prev, userMessage, assistantMessage]);
+      } else {
+        toast.error('No products found for this image');
+      }
+    } catch (error) {
+      console.error('Error searching image:', error);
+      toast.error('Failed to search for products similar to this image.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Load full chat history from the backend
@@ -223,10 +280,10 @@ const AssistantPage = () => {
             
             // Add product info to the message
             assistantMessage.productInfo = {
-              id: product.product_id,
+              id: product.product_id || product._id,
               name: product.name,
               price: product.price,
-              image: product.image_url || '',
+              image: product.image_url || (product.images && product.images[0]) || '',
               category: product.category
             };
           }
@@ -354,7 +411,11 @@ const AssistantPage = () => {
         </main>
 
         <div className="relative">
-          <ChatInput onSendMessage={handleSendMessage} loading={loading} />
+          <ChatInput 
+            onSendMessage={handleSendMessage} 
+            onImageSearch={handleImageSearch}
+            loading={loading} 
+          />
         </div>
       </div>
     </div>
