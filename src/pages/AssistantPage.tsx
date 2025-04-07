@@ -7,6 +7,7 @@ import { Bot, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { getProductById } from '@/services/productService';
 import config from '@/config';
 import ChatMessage from '@/components/assistant/ChatMessage';
 import QuickPromptButton from '@/components/assistant/QuickPromptButton';
@@ -14,7 +15,6 @@ import ChatSidebar from '@/components/assistant/ChatSidebar';
 import ChatInput from '@/components/assistant/ChatInput';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ThemeToggle from '@/components/ThemeToggle';
-import ReactMarkdown from 'react-markdown';
 
 // Define the message interface
 interface ChatMessage {
@@ -37,8 +37,6 @@ interface ProductInfo {
   price: number;
   images: string[];
   category: string;
-  product_id?: string;
-  image_url?: string;
 }
 
 const quickPrompts = [
@@ -56,8 +54,6 @@ const AssistantPage = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [productQuery, setProductQuery] = useState<string>("");
-  const [imageSearchResults, setImageSearchResults] = useState<ProductInfo[]>([]);
 
   // API URL from config
   const API_URL = config.assistantApiUrl;
@@ -114,101 +110,6 @@ const AssistantPage = () => {
     }
   };
 
-  // Convert image file to base64 string without the prefix
-  const convertImageToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        // Remove the prefix "data:image/..;base64," if necessary
-        const base64Data = result.split(',')[1];
-        resolve(base64Data);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Handle image search
-  const handleImageSearch = async (imageFile: File) => {
-    if (!imageFile) return;
-    
-    try {
-      setLoading(true);
-      // Convert image to base64
-      const base64Data = await convertImageToBase64(imageFile);
-      
-      // Call image search endpoint
-      const response = await axios.post(`${API_URL}${config.imageSearchEndpoint}`, {
-        image_data: base64Data
-      });
-      
-      if (response.data && response.data.products) {
-        setImageSearchResults(response.data.products);
-        
-        // Add a user message with the image
-        const userMessage: ChatMessage = {
-          role: 'user',
-          content: "What products are similar to this image?",
-          timestamp: new Date().toISOString()
-        };
-        
-        // Add an assistant message with the search results
-        const productsList = response.data.products.map((p: ProductInfo) => 
-          `- ${p.name} - $${p.price} (Product ID: ${p.product_id || p._id})`
-        ).join('\n');
-        
-        const assistantMessage: ChatMessage = {
-          role: 'assistant',
-          content: `Here are some products that match your image:\n\n${productsList}`,
-          timestamp: new Date().toISOString(),
-          productInfo: response.data.products[0] ? {
-            id: response.data.products[0].product_id || response.data.products[0]._id,
-            name: response.data.products[0].name,
-            price: response.data.products[0].price,
-            image: response.data.products[0].image_url || (response.data.products[0].images && response.data.products[0].images[0]) || '',
-            category: response.data.products[0].category
-          } : undefined
-        };
-        
-        setMessages(prev => [...prev, userMessage, assistantMessage]);
-      } else {
-        toast.error('No products found for this image');
-      }
-    } catch (error) {
-      console.error('Error searching image:', error);
-      toast.error('Failed to search for products similar to this image.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load full chat history from the backend
-  const loadChatHistory = async () => {
-    if (!sessionId) return;
-
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/api/chat/history?session_id=${sessionId}&limit=50`);
-      
-      if (response.data && response.data.messages) {
-        // Map messages to the local format
-        const formattedMessages = response.data.messages.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp
-        }));
-        
-        setMessages(formattedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-      toast.error('Failed to load chat history. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Parse product IDs from message content
   const parseProductIds = (content: string): string[] => {
     // Look for product IDs in the format "Product ID: XXXX - productName" or just "Product ID: XXXX"
@@ -217,18 +118,48 @@ const AssistantPage = () => {
     return matches.map(match => match[1]);
   };
 
-  // Search products based on a query
-  const searchProducts = async (query: string): Promise<any[]> => {
+  // Fetch product information for a product ID
+  const fetchProductInfo = async (productId: string): Promise<ProductInfo | null> => {
     try {
-      const response = await axios.get(`${API_URL}/api/search?q=${encodeURIComponent(query)}&limit=5`);
-      return response.data.products || [];
+      const product = await getProductById(productId);
+      return product;
     } catch (error) {
-      console.error('Error searching products:', error);
-      return [];
+      console.error(`Error fetching product ${productId}:`, error);
+      return null;
     }
   };
 
-  // Enhanced handleSendMessage to process products and support image search
+  // Process message to add product info
+  const processMessageWithProductInfo = async (message: ChatMessage): Promise<ChatMessage> => {
+    if (message.role !== 'assistant') return message;
+
+    const productIds = parseProductIds(message.content);
+    if (productIds.length === 0) return message;
+
+    try {
+      // Just get the first product for simplicity
+      const productId = productIds[0];
+      const productInfo = await fetchProductInfo(productId);
+      
+      if (productInfo) {
+        return {
+          ...message,
+          productInfo: {
+            id: productInfo._id,
+            name: productInfo.name,
+            price: productInfo.price,
+            image: productInfo.images[0],
+            category: productInfo.category
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error processing product info:', error);
+    }
+
+    return message;
+  };
+
   const handleSendMessage = async (newMessage: string, imageFile: File | null) => {
     if (!newMessage.trim() && !imageFile) return;
     
@@ -253,7 +184,17 @@ const AssistantPage = () => {
       
       // If we have an image file, encode it as base64
       if (imageFile) {
-        const base64String = await convertImageToBase64(imageFile);
+        const base64String = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            // Extract the base64 data without the prefix
+            const base64Data = base64.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.readAsDataURL(imageFile);
+        });
+        
         requestData.image_data = base64String;
       }
       
@@ -268,28 +209,9 @@ const AssistantPage = () => {
           timestamp: new Date().toISOString()
         };
         
-        // Check if the response contains product IDs
-        const productIds = parseProductIds(response.data.message);
-        
-        if (productIds.length > 0) {
-          // Search for products mentioned in the response
-          const productsInfo = await searchProducts(productIds[0]);
-          
-          if (productsInfo.length > 0) {
-            const product = productsInfo[0];
-            
-            // Add product info to the message
-            assistantMessage.productInfo = {
-              id: product.product_id || product._id,
-              name: product.name,
-              price: product.price,
-              image: product.image_url || (product.images && product.images[0]) || '',
-              category: product.category
-            };
-          }
-        }
-        
-        setMessages(prev => [...prev, assistantMessage]);
+        // Process the message to add product info if any
+        const processedMessage = await processMessageWithProductInfo(assistantMessage);
+        setMessages(prev => [...prev, processedMessage]);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -326,7 +248,6 @@ const AssistantPage = () => {
         onNewChat={handleNewChat} 
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
-        onLoadHistory={loadChatHistory}
       />
 
       {/* Main chat area */}
@@ -411,11 +332,7 @@ const AssistantPage = () => {
         </main>
 
         <div className="relative">
-          <ChatInput 
-            onSendMessage={handleSendMessage} 
-            onImageSearch={handleImageSearch}
-            loading={loading} 
-          />
+          <ChatInput onSendMessage={handleSendMessage} loading={loading} />
         </div>
       </div>
     </div>
