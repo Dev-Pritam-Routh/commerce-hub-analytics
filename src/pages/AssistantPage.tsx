@@ -198,7 +198,7 @@ const AssistantPage = () => {
 
   // Parse product IDs from message content
   const parseProductIds = (content: string): string[] => {
-    // Look for product IDs in the format "Product ID: XXXX - productName" or just "Product ID: XXXX"
+    // Look for product IDs in the format "Product ID: XXXX" or similar patterns
     const regex = /Product ID: ([a-f0-9]{24})/g;
     const matches = [...content.matchAll(regex)];
     return matches.map(match => match[1]);
