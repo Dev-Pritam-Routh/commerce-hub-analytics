@@ -7,11 +7,10 @@ import { toast } from 'sonner';
 
 interface ChatInputProps {
   onSendMessage: (message: string, imageFile: File | null) => void;
-  onImageSearch?: (imageFile: File) => void; // New prop for image search
   loading: boolean;
 }
 
-const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) => {
+const ChatInput = ({ onSendMessage, loading }: ChatInputProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -40,11 +39,6 @@ const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) =>
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-
-      // If onImageSearch is provided, call it with the file
-      if (onImageSearch) {
-        onImageSearch(file);
-      }
     }
   };
 

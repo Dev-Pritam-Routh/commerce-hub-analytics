@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -15,31 +14,9 @@ import ChatInput from '@/components/assistant/ChatInput';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ThemeToggle from '@/components/ThemeToggle';
 import ReactMarkdown from 'react-markdown';
-
-// Define the message interface
-interface ChatMessage {
-  role: 'assistant' | 'user';
-  content: string;
-  timestamp: string;
-  productInfo?: {
-    id: string;
-    name: string;
-    price: number;
-    image: string;
-    category: string;
-  };
-}
-
-// Product info interface
-interface ProductInfo {
-  _id: string;
-  name: string;
-  price: number;
-  images: string[];
-  category: string;
-  product_id?: string;
-  image_url?: string;
-}
+import { Product } from '@/types';
+import ChatProductResponse from '@/components/assistant/ChatProductResponse';
+import { cn } from '@/lib/utils';
 
 const quickPrompts = [
   "What are some trending products right now?",
@@ -48,16 +25,71 @@ const quickPrompts = [
   "Show me similar products to this image"
 ];
 
+interface ImageSearchResponse {
+  products: Product[];
+}
+
+interface ChatMessageResponse {
+  message: string;
+  intent: string;
+  product_ids?: string[];
+}
+
+interface ChatRequestData {
+  session_id: string;
+  message: string;
+  image_data?: string;
+}
+
+interface ProductResponse {
+  success: boolean;
+  product: Product;
+  error?: string;
+}
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  referenced_products?: Product[];
+  type?: string;
+  productIds?: string[];
+}
+
+interface ChatSessionResponse {
+  session_id: string;
+  message: string;
+}
+
+interface ChatHistoryResponse {
+  messages: Message[];
+}
+
+interface SearchResponse {
+  message: string;
+  products: Product[];
+}
+
+interface ProductInfo {
+  product_id: string;
+  name: string;
+  price: number;
+  category: string;
+  image_url: string;
+  images: string[];
+}
+
 const AssistantPage = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [productQuery, setProductQuery] = useState<string>("");
   const [imageSearchResults, setImageSearchResults] = useState<ProductInfo[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // API URL from config
   const API_URL = config.assistantApiUrl;
@@ -83,30 +115,31 @@ const AssistantPage = () => {
   const createChatSession = async () => {
     try {
       setLoading(true);
-      const response = await axios.post(`${API_URL}/chat/session`, {
+      const response = await axios.post<ChatSessionResponse>(`${API_URL}/chat/session`, {
         user_id: user?.id || 'guest',
-        user_email: user?.email || undefined,
+        user_email: user?.email || undefined
       });
-  
+
       if (response.data && response.data.session_id) {
         setSessionId(response.data.session_id);
         setMessages([
           {
             role: 'assistant',
             content: response.data.message || 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.',
-            timestamp: new Date().toISOString(),
-          },
+            timestamp: new Date().toISOString()
+          }
         ]);
       }
     } catch (error) {
       console.error('Error creating chat session:', error);
       toast.error('Failed to connect to the assistant. Please try again later.');
+      // Set default welcome message even if API fails
       setMessages([
         {
           role: 'assistant',
           content: 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations. (Note: I\'m currently in demo mode)',
-          timestamp: new Date().toISOString(),
-        },
+          timestamp: new Date().toISOString()
+        }
       ]);
     } finally {
       setLoading(false);
@@ -131,34 +164,45 @@ const AssistantPage = () => {
   // Handle image search
   const handleImageSearch = async (imageFile: File) => {
     if (!imageFile) return;
-  
+    
     try {
       setLoading(true);
+      
+      // Convert image to base64
       const base64Data = await convertImageToBase64(imageFile);
-  
-      const response = await axios.post(`${API_URL}/chat/message`, {
-        session_id: sessionId || 'demo-session',
-        image_data: base64Data,
+      
+      // Send to image search endpoint
+      const response = await axios.post<ImageSearchResponse>(`${API_URL}/image-search`, {
+        image_data: base64Data
       });
-  
-      if (response.data && response.data.message) {
+      
+      if (response.data && response.data.products) {
+        // Add a user message with the image
+        const userMessage: Message = {
+          role: 'user',
+          content: "What products are similar to this image?",
+          timestamp: new Date().toISOString()
+        };
         
-        // Add an assistant message with the search results
-        const productsList = response.data.products.map((p: ProductInfo) => 
-          `- ${p.name} - $${p.price} (Product ID: ${p.product_id || p._id})`
+        // Format products list
+        const productsList = response.data.products.map((p: Product) => 
+          `- ${p.name} - $${p.price} (Product ID: ${p.product_id})`
         ).join('\n');
         
-        const assistantMessage: ChatMessage = {
+        // Add assistant message with the search results
+        const assistantMessage: Message = {
           role: 'assistant',
           content: `Here are some products that match your image:\n\n${productsList}`,
           timestamp: new Date().toISOString(),
-          productInfo: response.data.products[0] ? {
-            id: response.data.products[0].product_id || response.data.products[0]._id,
-            name: response.data.products[0].name,
-            price: response.data.products[0].price,
-            image: response.data.products[0].image_url || (response.data.products[0].images && response.data.products[0].images[0]) || '',
-            category: response.data.products[0].category
-          } : undefined
+          referenced_products: response.data.products.map((p: Product) => ({
+            product_id: p.product_id,
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            image_url: p.image_url,
+            description: p.similarity ? `Similarity: ${p.similarity.toFixed(2)}` : undefined,
+            rating: p.similarity ? p.similarity : undefined
+          }))
         };
         
         setMessages(prev => [...prev, userMessage, assistantMessage]);
@@ -176,20 +220,19 @@ const AssistantPage = () => {
   // Load full chat history from the backend
   const loadChatHistory = async () => {
     if (!sessionId) return;
-  
+
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/chat/history`, {
-        params: { session_id: sessionId, limit: 50 },
-      });
-  
+      const response = await axios.get<ChatHistoryResponse>(`${API_URL}/chat/history?session_id=${sessionId}&limit=50`);
+      
       if (response.data && response.data.messages) {
-        const formattedMessages = response.data.messages.map((msg: any) => ({
-          role: msg.role,
+        // Map messages to the local format
+        const formattedMessages = response.data.messages.map((msg) => ({
+          role: msg.role as 'assistant' | 'user',
           content: msg.content,
-          timestamp: msg.timestamp,
+          timestamp: msg.timestamp
         }));
-  
+        
         setMessages(formattedMessages);
       }
     } catch (error) {
@@ -209,9 +252,9 @@ const AssistantPage = () => {
   };
 
   // Search products based on a query
-  const searchProducts = async (query: string): Promise<any[]> => {
+  const searchProducts = async (query: string): Promise<SearchResponse['products']> => {
     try {
-      const response = await axios.get(`${API_URL}/search?q=${encodeURIComponent(query)}&limit=5`);
+      const response = await axios.get<SearchResponse>(`${API_URL}/search?q=${encodeURIComponent(query)}&limit=5`);
       return response.data.products || [];
     } catch (error) {
       console.error('Error searching products:', error);
@@ -219,73 +262,132 @@ const AssistantPage = () => {
     }
   };
 
-  // Enhanced handleSendMessage to process products and support image search
-  const handleSendMessage = async (newMessage: string, imageFile: File | null) => {
-    if (!newMessage.trim() && !imageFile) return;
-  
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-    };
-  
-    setMessages((prev) => [...prev, userMessage]);
-    setLoading(true);
-  
+  // Function to fetch product details with improved error handling
+  const fetchProductDetails = async (productId: string): Promise<Product | null> => {
     try {
-      const requestData: any = {
-        session_id: sessionId || 'demo-session',
-        message: newMessage,
-      };
-  
-      if (imageFile) {
-        const base64String = await convertImageToBase64(imageFile);
-        requestData.image_data = base64String;
-      }
-  
-      const response = await axios.post(`${API_URL}/chat/message`, requestData);
+      const response = await axios.get<ProductResponse>(`${API_URL}/products/${productId}`);
       
-      // Add assistant response to chat
-      if (response.data && response.data.message) {
-        const assistantMessage: ChatMessage = {
+      if (response.data.success && response.data.product) {
+        return response.data.product;
+      }
+      
+      console.error('Error fetching product details:', response.data.error);
+      return null;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          console.error(`Product ${productId} not found`);
+        } else {
+          console.error(`Error fetching product ${productId}:`, error.message);
+        }
+      } else {
+        console.error(`Unexpected error fetching product ${productId}:`, error);
+      }
+      return null;
+    }
+  };
+
+  // Function to extract product IDs from message with improved pattern matching
+  const extractProductIds = (message: string): string[] => {
+    // Look for product IDs in various formats
+    const patterns = [
+      /product_id: ([a-f0-9]{24})/i,
+      /product id: ([a-f0-9]{24})/i,
+      /id: ([a-f0-9]{24})/i,
+      /\[([a-f0-9]{24})\]/,
+      /\(([a-f0-9]{24})\)/
+    ];
+    
+    const ids = new Set<string>();
+    patterns.forEach(pattern => {
+      const matches = message.match(new RegExp(pattern, 'g'));
+      if (matches) {
+        matches.forEach(match => {
+          const id = match.match(pattern)?.[1];
+          if (id) ids.add(id);
+        });
+      }
+    });
+    
+    return Array.from(ids);
+  };
+
+  const sendMessage = async (message: string, imageFile: File | null) => {
+    try {
+      // Prepare request data
+      const requestData: ChatRequestData = {
+        session_id: sessionId || 'demo-session',
+        message: message
+      };
+      
+      // If we have an image file, encode it as base64
+      if (imageFile) {
+        const base64Data = await convertImageToBase64(imageFile);
+        requestData.image_data = base64Data;
+      }
+      
+      // Send the message to the API
+      const response = await axios.post<ChatMessageResponse>(`${API_URL}/chat/message`, requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  };
+
+  const handleSendMessage = async (message: string, imageFile: File | null) => {
+    if (!message.trim() && !imageFile) return;
+
+    try {
+      setLoading(true);
+      
+      // Add user message to chat
+      const userMessage: Message = {
+        role: 'user',
+        content: message,
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      
+      const response = await sendMessage(message, imageFile);
+      
+      // Extract product IDs from the response message
+      const productIds = extractProductIds(response.message);
+      
+      // Add assistant's message
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: response.message,
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // If we found any product IDs, add a product display message
+      if (productIds.length > 0) {
+        const productMessage: Message = {
           role: 'assistant',
-          content: response.data.message,
+          content: '',
+          type: 'products',
+          productIds: productIds,
           timestamp: new Date().toISOString()
         };
-        
-        // Check if the response contains product IDs
-        const productIds = parseProductIds(response.data.message);
-        
-        if (productIds.length > 0) {
-          // Search for products mentioned in the response
-          const productsInfo = await searchProducts(productIds[0]);
-          
-          if (productsInfo.length > 0) {
-            const product = productsInfo[0];
-            
-            // Add product info to the message
-            assistantMessage.productInfo = {
-              id: product.product_id || product._id,
-              name: product.name,
-              price: product.price,
-              image: product.image_url || (product.images && product.images[0]) || '',
-              category: product.category
-            };
-          }
-        }
-        
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages(prev => [...prev, productMessage]);
+      }
+      
+      // Also check for product IDs in the response data if available
+      if (response.product_ids && response.product_ids.length > 0) {
+        const productMessage: Message = {
+          role: 'assistant',
+          content: '',
+          type: 'products',
+          productIds: response.product_ids,
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, productMessage]);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Add fallback response in case of API failure
-      const fallbackMessage: ChatMessage = {
-        role: 'assistant',
-        content: "I'm sorry, I'm having trouble processing your request right now. Please try again later.",
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, fallbackMessage]);
-      toast.error('Failed to get response from the assistant.');
+      toast.error('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -303,6 +405,62 @@ const AssistantPage = () => {
   const toggleSidebar = () => {
     setIsSidebarOpen(prev => !prev);
   };
+
+  // Add ProductCard component
+  const ProductCard = ({ product }: { product: Product }) => {
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+      setIsVisible(true);
+    }, []);
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden my-4"
+      >
+        <div className="relative h-48">
+          <img 
+            src={product.image_url} 
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            {product.name}
+          </h3>
+          <p className="text-2xl font-bold text-gold mb-2">
+            ${product.price.toFixed(2)}
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            {product.category}
+          </p>
+          {product.description && (
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {product.description}
+            </p>
+          )}
+          {product.rating && (
+            <div className="flex items-center mt-2">
+              <span className="text-yellow-400">★</span>
+              <span className="ml-1 text-sm text-gray-600 dark:text-gray-400">
+                {product.rating.toFixed(1)}
+              </span>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -364,13 +522,27 @@ const AssistantPage = () => {
           ) : (
             <div className="max-w-3xl mx-auto space-y-4">
               {messages.map((message, index) => (
-                <ChatMessage
+                <div
                   key={index}
-                  role={message.role}
-                  content={message.content}
-                  timestamp={message.timestamp}
-                  productInfo={message.productInfo}
-                />
+                  className={cn(
+                    "flex",
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-lg p-4",
+                      message.role === "user"
+                        ? "bg-primary text-white"
+                        : "bg-white dark:bg-gray-800"
+                    )}
+                  >
+                    {message.content}
+                    {message.type === 'products' && message.productIds && (
+                      <ChatProductResponse productIds={message.productIds} />
+                    )}
+                  </div>
+                </div>
               ))}
               
               {loading && (
