@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 interface ChatInputProps {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   onSendMessage: (message: string, imageFile: File | null) => void;
   onImageSearch?: (imageFile: File) => void;
   loading: boolean;
@@ -19,12 +20,22 @@ const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) =>
   loading: boolean;
 }
 
+=======
+  onSendMessage: (message: string, imageFile: File | null) => Promise<void>;
+  onImageSearch: (imageFile: File) => Promise<void>;
+  loading: boolean;
+}
+
+>>>>>>> Stashed changes
 const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   onImageSearch,
   loading
 }) => {
   const [message, setMessage] = useState('');
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -79,6 +90,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -96,6 +108,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     clearImage();
   };
 
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   return (
@@ -133,6 +147,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
       <Button 
         type="submit" 
         disabled={loading}
@@ -141,6 +156,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <Send className="h-5 w-5" />
         <span className="sr-only">Send message</span>
       </Button>
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 

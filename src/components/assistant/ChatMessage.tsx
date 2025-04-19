@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -14,11 +15,16 @@ interface ProductInfo {
   category: string;
 }
 =======
+=======
+>>>>>>> Stashed changes
 import { Avatar } from '@/components/ui/avatar';
 import { Bot, User } from 'lucide-react';
 import { Product } from '@/types';
 import ProductCard from './ProductCard';
 import ReactMarkdown from 'react-markdown';
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 interface ChatMessageProps {
@@ -39,6 +45,14 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
       product_id: match[1],
       name: match[2].trim()
     }));
+<<<<<<< Updated upstream
+=======
+  };
+
+  // Remove product references from content
+  const cleanContent = (text: string) => {
+    return text.replace(/\[PRODUCT:[a-f0-9]{24}\].*?(?=\n|$)/g, '').trim();
+>>>>>>> Stashed changes
   };
 
   // Remove product references from content
@@ -63,6 +77,7 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
       transition={{ duration: 0.3 }}
       className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} mb-4`}
     >
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
       <div
         className={`max-w-[80%] rounded-lg p-3 ${
@@ -121,6 +136,8 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
           </motion.div>
         )}
 =======
+=======
+>>>>>>> Stashed changes
       <div className={`flex ${isAssistant ? 'flex-row' : 'flex-row-reverse'} items-start max-w-3xl`}>
         <Avatar className={`h-8 w-8 ${isAssistant ? 'mr-2' : 'ml-2'}`}>
           {isAssistant ? (
@@ -152,6 +169,9 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
             {new Date(timestamp).toLocaleTimeString()}
           </span>
         </div>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
       </div>
     </motion.div>

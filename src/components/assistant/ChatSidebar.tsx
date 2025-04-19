@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
 import { Button } from "@/components/ui/button";
 import { Plus, MessageSquare, RotateCcw } from "lucide-react";
@@ -18,6 +19,11 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 >>>>>>> Stashed changes
+=======
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+>>>>>>> Stashed changes
 
 interface ChatSidebarProps {
   onNewChat: () => void;
@@ -25,6 +31,7 @@ interface ChatSidebarProps {
   onLoadHistory: () => void;
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   sessions: ChatSession[];
   currentSessionId: string | null;
@@ -124,6 +131,39 @@ const ChatSidebar = ({
         </div>
       </div>
     </motion.aside>
+=======
+  onLoadHistory: () => Promise<void>;
+}
+
+const ChatSidebar: React.FC<ChatSidebarProps> = ({
+  onNewChat,
+  isSidebarOpen,
+  toggleSidebar,
+  onLoadHistory
+}) => {
+  return (
+    <div className={`fixed left-0 top-0 h-full w-80 bg-background border-r transition-transform duration-300 z-40 ${
+      isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+    }`}>
+      <div className="p-4">
+        <Button
+          onClick={onNewChat}
+          className="w-full mb-4"
+          variant="outline"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          New Chat
+        </Button>
+        <Button
+          onClick={onLoadHistory}
+          className="w-full"
+          variant="ghost"
+        >
+          Load History
+        </Button>
+      </div>
+    </div>
+>>>>>>> Stashed changes
 =======
   onLoadHistory: () => Promise<void>;
 }

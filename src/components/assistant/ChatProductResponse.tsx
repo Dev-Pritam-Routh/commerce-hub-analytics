@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { Product } from '@/types';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,8 @@ const ChatProductResponse = ({ products, className }: ChatProductResponseProps) 
       ))}
     </div>
 =======
+=======
+>>>>>>> Stashed changes
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import ChatProductCard from './ChatProductCard';
@@ -81,6 +84,9 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
         />
       ))}
     </motion.div>
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   );
 };
