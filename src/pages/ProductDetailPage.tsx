@@ -10,16 +10,25 @@ import { useQuery } from '@tanstack/react-query';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Star, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { getProductById } from '@/services/productService';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ReviewForm } from '@/components/ReviewForm';
+import { ReviewList } from '@/components/ReviewList';
+import { useWishlist } from '@/contexts/WishlistContext';
+import { useReview } from '@/contexts/ReviewContext';
+import { toast } from 'sonner';
+import api from '@/services/api';
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: useToastToast } = useToast();
   const { isAuthenticated } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, removeFromCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState('description');
+  const [showReviewForm, setShowReviewForm] = useState(false);
   
-  // Update the useQuery implementation to properly handle the case when id is undefined
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
     queryFn: () => {
@@ -28,13 +37,12 @@ const ProductDetailPage = () => {
       }
       return getProductById(id);
     },
-    enabled: !!id // This is the key fix - only run the query when id exists
+    enabled: !!id
   });
 
-  
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!isAuthenticated) {
-      toast({
+      useToastToast({
         title: "Authentication required",
         description: "Please log in to add items to your cart",
         variant: "destructive",
@@ -44,7 +52,7 @@ const ProductDetailPage = () => {
     }
     
     if (!product) {
-      toast({
+      useToastToast({
         title: "Error",
         description: "Product information not available",
         variant: "destructive",
@@ -52,34 +60,45 @@ const ProductDetailPage = () => {
       return;
     }
     
-    // Extract seller ID from product data
-    const sellerId = typeof product.seller === 'object' && product.seller._id 
-      ? product.seller._id 
-      : (typeof product.seller === 'string' ? product.seller : '');
+    try {
+      await addToCart(product._id, quantity);
+      toast.success('Product added to cart');
+    } catch (error) {
+      toast.error('Failed to add product to cart');
+    }
+  };
+
+  const handleWishlist = async () => {
+    if (!isAuthenticated) {
+      useToastToast({
+        title: "Authentication required",
+        description: "Please log in to update your wishlist",
+        variant: "destructive",
+      });
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
     
-    if (!sellerId) {
-      toast({
+    if (!product) {
+      useToastToast({
         title: "Error",
-        description: "Seller information not available",
+        description: "Product information not available",
         variant: "destructive",
       });
       return;
     }
     
-    addToCart({
-      id: product._id,
-      name: product.name,
-      price: product.discountedPrice || product.price,
-      image: product.images[0],
-      quantity: quantity,
-      stock: product.stock,
-      sellerId: sellerId
-    });
-    
-    toast({
-      title: "Added to cart",
-      description: `${quantity} ${quantity > 1 ? 'items' : 'item'} added to your cart`,
-    });
+    try {
+      if (isInWishlist(product._id)) {
+        await removeFromWishlist(product._id);
+        toast.success('Product removed from wishlist');
+      } else {
+        await addToWishlist(product._id);
+        toast.success('Product added to wishlist');
+      }
+    } catch (error) {
+      toast.error('Failed to update wishlist');
+    }
   };
   
   const handleQuantityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -129,28 +148,23 @@ const ProductDetailPage = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Product Images */}
-        <div>
-          <div className="bg-white rounded-lg overflow-hidden shadow-md">
-            <img 
-              src={product.images[0]} 
-              alt={product.name} 
-              className="w-full h-auto object-cover"
-            />
+        <div className="space-y-4">
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            className="w-full h-96 object-cover rounded-lg"
+          />
+          <div className="grid grid-cols-4 gap-2">
+            {product.images.slice(1).map((image: string, index: number) => (
+              <img
+                key={index}
+                src={image}
+                alt={`${product.name} ${index + 2}`}
+                className="w-full h-24 object-cover rounded-lg cursor-pointer"
+                onClick={() => {/* Handle image click */}}
+              />
+            ))}
           </div>
-          
-          {product.images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              {product.images.slice(1).map((image, index) => (
-                <div key={index} className="bg-white rounded-md overflow-hidden shadow-sm cursor-pointer">
-                  <img 
-                    src={image} 
-                    alt={`${product.name} ${index + 2}`} 
-                    className="w-full h-auto object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
         
         {/* Product Details */}
@@ -238,58 +252,67 @@ const ProductDetailPage = () => {
         </div>
       </div>
       
-      {/* Reviews Section */}
+      {/* Product Details Tabs */}
       <div className="mt-12">
-        <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
-        
-        {!product.ratings || product.ratings.length === 0 ? (
-          <p className="text-gray-500">No reviews yet. Be the first to review this product!</p>
-        ) : (
-          <div className="space-y-6">
-            {product.ratings.map((rating, index) => (
-              <Card key={index} className="p-4">
-                <div className="flex justify-between mb-2">
-                  <div className="font-medium">
-                    {typeof rating.user === 'object' && rating.user.name 
-                      ? rating.user.name 
-                      : 'Anonymous'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {new Date(rating.date).toLocaleDateString()}
-                  </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="description">Description</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="description">
+            <div className="mt-4">
+              <h2 className="text-xl font-semibold mb-4">Product Description</h2>
+              <p className="text-gray-600">{product.description}</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Customer Reviews</h2>
+                <Button onClick={() => setShowReviewForm(true)}>
+                  Write a Review
+                </Button>
+              </div>
+
+              {showReviewForm && (
+                <div className="mb-8">
+                  <ReviewForm
+                    productId={product._id}
+                    onSuccess={() => setShowReviewForm(false)}
+                  />
                 </div>
-                <div className="flex items-center mb-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={`h-4 w-4 ${i < rating.rating 
-                        ? 'text-yellow-400 fill-yellow-400' 
-                        : 'text-gray-300'}`}
-                    />
-                  ))}
+              )}
+
+              <ReviewList productId={product._id} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="shipping">
+            <div className="mt-4">
+              <h2 className="text-xl font-semibold mb-4">Shipping & Returns</h2>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium">Shipping Information</h3>
+                  <p className="text-gray-600">
+                    Free shipping on orders over $50. Standard delivery within 3-5 business days.
+                  </p>
                 </div>
-                <p className="text-gray-700">{rating.review}</p>
-              </Card>
-            ))}
-          </div>
-        )}
-        
-        {isAuthenticated ? (
-          <div className="mt-8">
-            <Button>Write a Review</Button>
-          </div>
-        ) : (
-          <div className="mt-8 text-center">
-            <p className="text-gray-500 mb-2">Please sign in to write a review</p>
-            <Button onClick={() => navigate('/login', { state: { from: `/product/${product._id}` } })}>
-              Sign In
-            </Button>
-          </div>
-        )}
+                <div>
+                  <h3 className="font-medium">Returns Policy</h3>
+                  <p className="text-gray-600">
+                    Easy returns within 30 days of purchase. Items must be unused and in original packaging.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
 };
-
 
 export default ProductDetailPage;

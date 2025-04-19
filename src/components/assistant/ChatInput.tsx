@@ -1,11 +1,11 @@
-
-import { useState, useRef } from 'react';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Send, Image, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Image, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChatInputProps {
+<<<<<<< Updated upstream
   onSendMessage: (message: string, imageFile: File | null) => void;
   onImageSearch?: (imageFile: File) => void;
   loading: boolean;
@@ -13,12 +13,39 @@ interface ChatInputProps {
 
 const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) => {
   const [newMessage, setNewMessage] = useState('');
+=======
+  onSendMessage: (message: string, imageFile: File | null) => Promise<void>;
+  onImageSearch: (imageFile: File) => Promise<void>;
+  loading: boolean;
+}
+
+const ChatInput: React.FC<ChatInputProps> = ({
+  onSendMessage,
+  onImageSearch,
+  loading
+}) => {
+  const [message, setMessage] = useState('');
+>>>>>>> Stashed changes
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() && !imageFile) return;
+
+    if (imageFile) {
+      await onImageSearch(imageFile);
+    } else {
+      await onSendMessage(message, null);
+    }
+
+    setMessage('');
+    clearImage();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       // Check file type
       if (!file.type.startsWith('image/')) {
@@ -51,6 +78,7 @@ const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) =>
     }
   };
 
+<<<<<<< Updated upstream
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -68,40 +96,43 @@ const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) =>
     clearImage();
   };
 
+=======
+>>>>>>> Stashed changes
   return (
-    <form onSubmit={handleSubmit} className="border-t p-4 flex gap-2">
-      <div className="flex-1 relative">
-        <Textarea
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder={imageFile ? "Describe what you're looking for in this image..." : "Type your message..."}
-          className="resize-none min-h-[60px] pr-10"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
-        />
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
-          id="image-upload"
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="absolute right-2 bottom-2.5"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={loading}
-        >
-          <Image className="h-5 w-5 text-muted-foreground" />
-        </Button>
+    <form onSubmit={handleSubmit} className="p-4 border-t">
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <Textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={imageFile ? "Describe what you're looking for in this image..." : "Type your message..."}
+            className="min-h-[60px] resize-none"
+            disabled={loading}
+          />
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
+          >
+            <Image className="h-4 w-4" />
+          </Button>
+          <Button type="submit" disabled={loading || (!message.trim() && !imageFile)}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+<<<<<<< Updated upstream
       <Button 
         type="submit" 
         disabled={loading}
@@ -110,25 +141,25 @@ const ChatInput = ({ onSendMessage, onImageSearch, loading }: ChatInputProps) =>
         <Send className="h-5 w-5" />
         <span className="sr-only">Send message</span>
       </Button>
+=======
+>>>>>>> Stashed changes
 
       {/* Preview image if any */}
       {imagePreview && (
-        <div className="absolute bottom-20 left-4 p-2 border rounded-md bg-background shadow-md">
-          <div className="relative inline-block">
-            <img 
-              src={imagePreview} 
-              alt="Upload preview" 
-              className="h-20 w-20 object-cover rounded" 
-            />
-            <Button
-              onClick={clearImage}
-              size="sm"
-              variant="destructive"
-              className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
+        <div className="mt-2 relative inline-block">
+          <img 
+            src={imagePreview} 
+            alt="Upload preview" 
+            className="h-20 w-20 object-cover rounded" 
+          />
+          <Button
+            onClick={clearImage}
+            size="sm"
+            variant="destructive"
+            className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
+          >
+            <X className="h-3 w-3" />
+          </Button>
         </div>
       )}
     </form>
