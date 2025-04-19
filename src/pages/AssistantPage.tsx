@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import config from '@/config';
 import ChatMessage from '@/components/assistant/ChatMessage';
 import QuickPromptButton from '@/components/assistant/QuickPromptButton';
-import ChatSidebar from '@/components/assistant/ChatSidebar';
+import ChatSidebar, { ChatSession } from '@/components/assistant/ChatSidebar';
 import ChatInput from '@/components/assistant/ChatInput';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -18,6 +18,7 @@ import { Product } from '@/types';
 import ChatProductResponse from '@/components/assistant/ChatProductResponse';
 import { cn } from '@/lib/utils';
 
+// Quick prompts for empty state
 const quickPrompts = [
   "What are some trending products right now?",
   "Can you recommend a good laptop for video editing?",
@@ -86,6 +87,9 @@ const AssistantPage = () => {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [productQuery, setProductQuery] = useState<string>("");
   const [imageSearchResults, setImageSearchResults] = useState<ProductInfo[]>([]);
@@ -94,9 +98,10 @@ const AssistantPage = () => {
   // API URL from config
   const API_URL = config.assistantApiUrl;
 
-  // Create a new chat session when the component mounts
+  // Load sessions when component mounts
   useEffect(() => {
-    createChatSession();
+    loadSessions();
+    
     // Close sidebar on mobile by default
     if (isMobile) {
       setIsSidebarOpen(false);
@@ -112,6 +117,42 @@ const AssistantPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Load available chat sessions
+  const loadSessions = async () => {
+    try {
+      const response = await axios.get(`${API_URL}${config.chatEndpoints.getSessions}`, {
+        params: { user_id: user?.id || 'guest' }
+      });
+
+      if (response.data && response.data.sessions) {
+        // Sort sessions by timestamp (newest first)
+        const sortedSessions = response.data.sessions.sort((a: any, b: any) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        
+        setChatSessions(sortedSessions.map((session: any) => ({
+          id: session.session_id,
+          title: session.title || "New Conversation",
+          timestamp: session.timestamp,
+          lastMessage: session.last_message
+        })));
+
+        // If no active session, create a new one
+        if (!sessionId && sortedSessions.length > 0) {
+          setSessionId(sortedSessions[0].session_id);
+          loadChatHistory(sortedSessions[0].session_id);
+        } else if (!sessionId) {
+          createChatSession();
+        }
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+      toast.error('Failed to load chat sessions. Please try again later.');
+      createChatSession();
+    }
+  };
+
+  // Create a new chat session
   const createChatSession = async () => {
     try {
       setLoading(true);
@@ -122,6 +163,16 @@ const AssistantPage = () => {
 
       if (response.data && response.data.session_id) {
         setSessionId(response.data.session_id);
+        
+        // Add the new session to the list
+        const newSession: ChatSession = {
+          id: response.data.session_id,
+          title: "New Conversation",
+          timestamp: new Date().toISOString()
+        };
+        setChatSessions(prev => [newSession, ...prev]);
+        
+        // Set the welcome message
         setMessages([
           {
             role: 'assistant',
@@ -245,7 +296,7 @@ const AssistantPage = () => {
 
   // Parse product IDs from message content
   const parseProductIds = (content: string): string[] => {
-    // Look for product IDs in the format "Product ID: XXXX - productName" or just "Product ID: XXXX"
+    // Look for product IDs in the format "Product ID: XXXX" or similar patterns
     const regex = /Product ID: ([a-f0-9]{24})/g;
     const matches = [...content.matchAll(regex)];
     return matches.map(match => match[1]);
@@ -393,15 +444,47 @@ const AssistantPage = () => {
     }
   };
 
+  // Update session title based on first user message
+  const updateSessionTitle = (firstMessage: string) => {
+    // Truncate to first 30 chars
+    const title = firstMessage.length > 30 
+      ? firstMessage.substring(0, 27) + '...' 
+      : firstMessage;
+    
+    setChatSessions(prev => prev.map(session => 
+      session.id === sessionId ? { ...session, title } : session
+    ));
+  };
+
+  // Handle quick prompt selection
   const handleQuickPromptClick = (prompt: string) => {
     handleSendMessage(prompt, null);
   };
   
+  // Handle starting a new chat
   const handleNewChat = () => {
     setMessages([]);
+    setSearchResults([]);
+    setSearchQuery("");
     createChatSession();
   };
 
+  // Handle selecting an existing session
+  const handleSelectSession = (selectedSessionId: string) => {
+    if (selectedSessionId === sessionId) return;
+    
+    setMessages([]);
+    setSearchResults([]);
+    setSearchQuery("");
+    loadChatHistory(selectedSessionId);
+    
+    // Close sidebar on mobile after selection
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  // Toggle sidebar open/closed
   const toggleSidebar = () => {
     setIsSidebarOpen(prev => !prev);
   };
@@ -466,7 +549,9 @@ const AssistantPage = () => {
     <div className="h-screen flex overflow-hidden">
       {/* Sidebar */}
       <ChatSidebar 
-        onNewChat={handleNewChat} 
+        onNewChat={handleNewChat}
+        onSelectSession={handleSelectSession}
+        onLoadHistory={loadSessions}
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
         onLoadHistory={loadChatHistory}
@@ -562,12 +647,38 @@ const AssistantPage = () => {
                 </motion.div>
               )}
               
+              {searchResults.length > 0 && (
+                <div className="bg-muted p-4 rounded-lg mt-4">
+                  <h3 className="font-medium mb-2">Search Results for "{searchQuery}"</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {searchResults.map((product, index) => (
+                      <Card key={index} className="p-3 hover:bg-accent cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          {product.image && (
+                            <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{product.name}</div>
+                            <div className="text-sm text-muted-foreground">${product.price}</div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           )}
         </main>
 
         <div className="relative">
+          <ChatInput 
+            onSendMessage={handleSendMessage} 
+            onImageSearch={handleImageSearch}
+            loading={loading} 
+          />
           <ChatInput 
             onSendMessage={handleSendMessage} 
             onImageSearch={handleImageSearch}
