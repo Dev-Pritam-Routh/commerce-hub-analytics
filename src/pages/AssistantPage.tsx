@@ -554,7 +554,8 @@ const AssistantPage = () => {
         onLoadHistory={loadSessions}
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
-        onLoadHistory={loadChatHistory}
+        sessions={chatSessions}
+        currentSessionId={sessionId}
       />
 
       {/* Main chat area */}
