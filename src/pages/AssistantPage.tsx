@@ -422,6 +422,7 @@ const AssistantPage = () => {
       };
       setMessages(prev => [...prev, userMessage]);
       
+      // Get response from the API
       const response = await sendMessage(message, imageFile);
       
       // Handle the response based on its type
@@ -437,10 +438,15 @@ const AssistantPage = () => {
         responseData = response;
       }
       
+      // Ensure content is a string before adding to messages
+      const messageContent = typeof responseData.message === 'string' 
+        ? responseData.message 
+        : JSON.stringify(responseData.message);
+      
       // Add assistant's message with the message content
       const assistantMessage: ChatMessageType = {
         role: 'assistant',
-        content: responseData.message,
+        content: messageContent,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, assistantMessage]);

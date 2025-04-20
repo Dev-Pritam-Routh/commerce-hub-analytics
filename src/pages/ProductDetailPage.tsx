@@ -1,318 +1,494 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet-async';
+import { toast } from 'sonner';
+import { Heart, ShoppingCart, Share2, Star, Truck, Shield, RotateCcw, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ReviewItem } from '@/components/ReviewItem';
+import { getProductById } from '@/services/productService';
+import { getProductReviews } from '@/services/reviewService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/components/ui/use-toast';
-import { useQuery } from '@tanstack/react-query';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Star, ShoppingCart, ChevronLeft } from 'lucide-react';
-import { getProductById } from '@/services/productService';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReviewForm } from '@/components/ReviewForm';
-import { ReviewList } from '@/components/ReviewList';
 import { useWishlist } from '@/contexts/WishlistContext';
-import { useReview } from '@/contexts/ReviewContext';
-import { toast } from 'sonner';
-import api from '@/services/api';
+import ProductCard from '@/components/ProductCard';
+import { cn } from '@/lib/utils';
 
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast: useToastToast } = useToast();
   const { isAuthenticated } = useAuth();
-  const { addToCart, removeFromCart } = useCart();
+  const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState('description');
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  
-  const { data: product, isLoading, error } = useQuery({
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isInWishlistState, setIsInWishlistState] = useState(false);
+
+  // Fetch product details
+  const { data: product, isLoading: isLoadingProduct, error: productError } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => {
-      if (!id) {
-        throw new Error('Product ID is missing');
-      }
-      return getProductById(id);
-    },
-    enabled: !!id
+    queryFn: () => getProductById(id as string),
+    enabled: !!id,
   });
 
-  const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      useToastToast({
-        title: "Authentication required",
-        description: "Please log in to add items to your cart",
-        variant: "destructive",
-      });
-      navigate('/login', { state: { from: `/product/${id}` } });
-      return;
+  // Fetch product reviews
+  const { data: reviews, isLoading: isLoadingReviews } = useQuery({
+    queryKey: ['productReviews', id],
+    queryFn: () => getProductReviews(id as string),
+    enabled: !!id,
+  });
+
+  // Check if product is in wishlist
+  useEffect(() => {
+    if (product) {
+      setIsInWishlistState(isInWishlist(product._id));
     }
+  }, [product, isInWishlist]);
+
+  // Handle add to cart
+  const handleAddToCart = () => {
+    if (!product) return;
     
-    if (!product) {
-      useToastToast({
-        title: "Error",
-        description: "Product information not available",
-        variant: "destructive",
+    const sellerId = typeof product.seller === 'object' ? product.seller._id : product.seller;
+    
+    addToCart({
+      id: product._id,
+      name: product.name,
+      price: product.discountedPrice || product.price,
+      image: product.images[0],
+      quantity: 1,
+      stock: product.stock,
+      sellerId: sellerId
+    });
+    
+    toast.success(`${product.name} added to your cart`);
+  };
+
+  // Handle wishlist toggle
+  const handleWishlistToggle = () => {
+    if (!product) return;
+    
+    if (isInWishlistState) {
+      removeFromWishlist(product._id);
+      setIsInWishlistState(false);
+      toast.success('Removed from wishlist');
+    } else {
+      addToWishlist({
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        image: product.images[0],
       });
-      return;
-    }
-    
-    try {
-      // Fix the addToCart call by passing only the productId and quantity
-      await addToCart(product._id, quantity);
-      toast.success('Product added to cart');
-    } catch (error) {
-      toast.error('Failed to add product to cart');
+      setIsInWishlistState(true);
+      toast.success('Added to wishlist');
     }
   };
 
-  const handleWishlist = async () => {
-    if (!isAuthenticated) {
-      useToastToast({
-        title: "Authentication required",
-        description: "Please log in to update your wishlist",
-        variant: "destructive",
-      });
-      navigate('/login', { state: { from: `/product/${id}` } });
-      return;
-    }
-    
-    if (!product) {
-      useToastToast({
-        title: "Error",
-        description: "Product information not available",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      if (isInWishlist(product._id)) {
-        await removeFromWishlist(product._id);
-        toast.success('Product removed from wishlist');
-      } else {
-        await addToWishlist(product._id);
-        toast.success('Product added to wishlist');
-      }
-    } catch (error) {
-      toast.error('Failed to update wishlist');
+  // Handle quantity change
+  const handleQuantityChange = (newQuantity: number) => {
+    if (product && newQuantity >= 1 && newQuantity <= product.stock) {
+      setQuantity(newQuantity);
     }
   };
-  
-  const handleQuantityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setQuantity(parseInt(e.target.value));
+
+  // Handle image navigation
+  const handlePrevImage = () => {
+    if (!product) return;
+    setCurrentImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
   };
-  
-  if (isLoading) {
+
+  const handleNextImage = () => {
+    if (!product) return;
+    setCurrentImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
+  };
+
+  // Calculate discount percentage
+  const calculateDiscountPercentage = () => {
+    if (!product || !product.discountedPrice || product.discountedPrice >= product.price) return 0;
+    return Math.round(((product.price - product.discountedPrice) / product.price) * 100);
+  };
+
+  // Loading state
+  if (isLoadingProduct) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)] pt-24">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-  
-  if (error || !product) {
-    return (
-      <div className="container mx-auto px-4 py-8 pt-24">
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-          <p className="text-gray-500 mb-6">The product you're looking for doesn't exist or has been removed.</p>
-          <Button onClick={() => navigate('/products')}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Back to Products
-          </Button>
+      <div className="container mx-auto py-8 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <Skeleton className="aspect-square rounded-lg" />
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-3/4" />
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-20 w-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
-  
-  const isDiscounted = product.discountedPrice && product.discountedPrice < product.price;
-  const displayPrice = isDiscounted ? product.discountedPrice : product.price;
-  const discount = isDiscounted ? Math.round((1 - product.discountedPrice / product.price) * 100) : 0;
-  
-  // Extract seller information
-  const sellerName = typeof product.seller === 'object' && product.seller.name 
-    ? product.seller.name 
-    : 'Seller information unavailable';
-  
+
+  // Error state
+  if (productError || !product) {
+    return (
+      <div className="container mx-auto py-16 px-4 text-center">
+        <h2 className="text-2xl font-bold mb-4">Product Not Found</h2>
+        <p className="mb-8">The product you're looking for doesn't exist or has been removed.</p>
+        <Button onClick={() => navigate('/products')}>Browse Products</Button>
+      </div>
+    );
+  }
+
+  // Format seller name
+  const sellerName = typeof product.seller === 'object' ? product.seller.name : 'Marketplace Seller';
+
+  // Discount percentage
+  const discountPercentage = calculateDiscountPercentage();
+
   return (
-    <div className="container mx-auto px-4 py-8 mt-24">
-      <Button 
-        variant="ghost" 
-        className="mb-4" 
-        onClick={() => navigate('/products')}
-      >
-        <ChevronLeft className="mr-2 h-4 w-4" /> Back to Products
-      </Button>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Product Images */}
-        <div className="space-y-4">
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            className="w-full h-96 object-cover rounded-lg"
-          />
-          <div className="grid grid-cols-4 gap-2">
-            {product.images.slice(1).map((image: string, index: number) => (
+    <>
+      <Helmet>
+        <title>{product.name} | Your Marketplace</title>
+        <meta name="description" content={product.description} />
+      </Helmet>
+
+      <div className="container mx-auto py-8 px-4">
+        {/* Breadcrumbs */}
+        <div className="flex items-center text-sm text-muted-foreground mb-6">
+          <span className="hover:text-foreground cursor-pointer" onClick={() => navigate('/')}>Home</span>
+          <ChevronRight className="h-4 w-4 mx-1" />
+          <span className="hover:text-foreground cursor-pointer" onClick={() => navigate('/products')}>Products</span>
+          <ChevronRight className="h-4 w-4 mx-1" />
+          <span className="hover:text-foreground cursor-pointer" onClick={() => navigate(`/products?category=${product.category}`)}>{product.category}</span>
+          <ChevronRight className="h-4 w-4 mx-1" />
+          <span className="text-foreground font-medium truncate">{product.name}</span>
+        </div>
+
+        {/* Product Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+          {/* Product Images */}
+          <div className="space-y-4">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
               <img
-                key={index}
-                src={image}
-                alt={`${product.name} ${index + 2}`}
-                className="w-full h-24 object-cover rounded-lg cursor-pointer"
-                onClick={() => {/* Handle image click */}}
+                src={product.images[currentImageIndex]}
+                alt={product.name}
+                className="w-full h-full object-contain"
+              />
+              
+              {product.images.length > 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-black/50 rounded-full"
+                    onClick={handlePrevImage}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 dark:bg-black/50 rounded-full"
+                    onClick={handleNextImage}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
+              
+              {discountPercentage > 0 && (
+                <Badge className="absolute top-4 left-4 bg-red-500 hover:bg-red-600">
+                  {discountPercentage}% OFF
+                </Badge>
+              )}
+            </div>
+            
+            {/* Thumbnail Images */}
+            {product.images.length > 1 && (
+              <div className="flex space-x-2 overflow-x-auto pb-2">
+                {product.images.map((image, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "cursor-pointer rounded-md overflow-hidden w-20 h-20 flex-shrink-0 border-2",
+                      index === currentImageIndex
+                        ? "border-primary"
+                        : "border-transparent hover:border-gray-300"
+                    )}
+                    onClick={() => setCurrentImageIndex(index)}
+                  >
+                    <img
+                      src={image}
+                      alt={`${product.name} - view ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Info */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+              
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="flex items-center">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={cn(
+                        "h-5 w-5",
+                        i < Math.round(product.averageRating)
+                          ? "text-yellow-400 fill-current"
+                          : "text-gray-300"
+                      )}
+                    />
+                  ))}
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({product.averageRating.toFixed(1)})
+                  </span>
+                </div>
+                
+                <Separator orientation="vertical" className="h-5" />
+                
+                <span className="text-sm text-muted-foreground">
+                  {product.numReviews} {product.numReviews === 1 ? 'Review' : 'Reviews'}
+                </span>
+                
+                {product.stock > 0 ? (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    In Stock
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                    Out of Stock
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="flex items-baseline space-x-3 mb-4">
+                {discountPercentage > 0 ? (
+                  <>
+                    <span className="text-3xl font-bold text-primary">
+                      ${product.discountedPrice.toFixed(2)}
+                    </span>
+                    <span className="text-xl text-muted-foreground line-through">
+                      ${product.price.toFixed(2)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold text-primary">
+                    ${product.price.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              
+              <p className="text-muted-foreground">{product.description}</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center border rounded-md">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleQuantityChange(quantity - 1)}
+                    disabled={quantity <= 1}
+                    className="h-10 w-10 rounded-none"
+                  >
+                    -
+                  </Button>
+                  <span className="w-12 text-center">{quantity}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleQuantityChange(quantity + 1)}
+                    disabled={quantity >= product.stock}
+                    className="h-10 w-10 rounded-none"
+                  >
+                    +
+                  </Button>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {product.stock} units available
+                </span>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  size="lg"
+                  className="flex-1"
+                  onClick={handleAddToCart}
+                  disabled={product.stock <= 0}
+                >
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  Add to Cart
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleWishlistToggle}
+                  className={isInWishlistState ? "text-red-500" : ""}
+                >
+                  <Heart
+                    className="mr-2 h-5 w-5"
+                    fill={isInWishlistState ? "currentColor" : "none"}
+                  />
+                  {isInWishlistState ? "In Wishlist" : "Add to Wishlist"}
+                </Button>
+                
+                <Button variant="outline" size="icon" className="hidden sm:flex">
+                  <Share2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-3">
+              <div className="flex items-start">
+                <Truck className="h-5 w-5 mr-3 text-muted-foreground" />
+                <div>
+                  <h4 className="font-medium">Free Shipping</h4>
+                  <p className="text-sm text-muted-foreground">Free standard shipping on orders over $50</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <Shield className="h-5 w-5 mr-3 text-muted-foreground" />
+                <div>
+                  <h4 className="font-medium">Secure Payment</h4>
+                  <p className="text-sm text-muted-foreground">Your payment information is processed securely</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <RotateCcw className="h-5 w-5 mr-3 text-muted-foreground" />
+                <div>
+                  <h4 className="font-medium">30-Day Returns</h4>
+                  <p className="text-sm text-muted-foreground">Return or exchange items within 30 days</p>
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h3 className="font-medium mb-2">Sold by</h3>
+              <div className="flex items-center justify-between">
+                <span>{sellerName}</span>
+                <Button variant="link" onClick={() => navigate(`/seller/${typeof product.seller === 'object' ? product.seller._id : product.seller}`)}>
+                  View Store
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Product Details Tabs */}
+        <Tabs defaultValue="details" className="mb-12">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="specifications">Specifications</TabsTrigger>
+            <TabsTrigger value="reviews">
+              Reviews ({product.numReviews})
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="details" className="mt-6">
+            <div className="prose dark:prose-invert max-w-none">
+              <p>{product.description}</p>
+              <ul>
+                {product.features?.map((feature, index) => (
+                  <li key={index}>{feature}</li>
+                ))}
+              </ul>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="specifications" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {product.specifications?.map((spec, index) => (
+                <div key={index} className="flex border-b pb-2">
+                  <span className="font-medium w-1/3">{spec.name}</span>
+                  <span className="w-2/3">{spec.value}</span>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="reviews" className="mt-6">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold">Customer Reviews</h3>
+                <Button onClick={() => navigate(`/products/${product._id}/review`, { state: { productName: product.name } })}>
+                  Write a Review
+                </Button>
+              </div>
+              
+              {isLoadingReviews ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="border rounded-lg p-6 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div>
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-24 mt-1" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  ))}
+                </div>
+              ) : reviews && reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <ReviewItem key={review._id} review={review} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <h4 className="text-lg font-medium mb-2">No reviews yet</h4>
+                  <p className="text-muted-foreground mb-6">Be the first to review this product</p>
+                  <Button onClick={() => navigate(`/products/${product._id}/review`, { state: { productName: product.name } })}>
+                    Write a Review
+                  </Button>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Related Products */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-6">Related Products</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {product.relatedProducts?.slice(0, 4).map((relatedProduct, index) => (
+              <ProductCard
+                key={relatedProduct._id}
+                id={relatedProduct._id}
+                name={relatedProduct.name}
+                price={relatedProduct.price}
+                image={relatedProduct.image}
+                rating={relatedProduct.rating}
+                category={relatedProduct.category}
+                delay={index * 100}
               />
             ))}
           </div>
         </div>
-        
-        {/* Product Details */}
-        <div>
-          <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-          
-          <div className="flex items-center mb-4">
-            <div className="flex items-center mr-2">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
-                  className={`h-5 w-5 ${i < Math.round(product.averageRating) 
-                    ? 'text-yellow-400 fill-yellow-400' 
-                    : 'text-gray-300'}`}
-                />
-              ))}
-            </div>
-            <span className="text-sm text-gray-600">
-              {product.averageRating.toFixed(1)} ({product.ratings?.length || 0} reviews)
-            </span>
-          </div>
-          
-          <div className="mb-4">
-            <div className="flex items-baseline">
-              <span className="text-2xl font-bold">${displayPrice.toFixed(2)}</span>
-              {isDiscounted && (
-                <>
-                  <span className="text-gray-500 line-through ml-2">${product.price.toFixed(2)}</span>
-                  <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-medium ml-2">
-                    {discount}% OFF
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className="mb-6">
-            <p className="mb-4">
-              <span className="font-semibold">Category:</span> {product.category}
-            </p>
-            <p className="mb-4">
-              <span className="font-semibold">Seller:</span> {sellerName}
-            </p>
-            <p className="mb-4">
-              <span className="font-semibold">Availability:</span> {" "}
-              {product.stock > 0 ? (
-                <span className="text-green-600">In Stock ({product.stock} available)</span>
-              ) : (
-                <span className="text-red-600">Out of Stock</span>
-              )}
-            </p>
-          </div>
-          
-          {product.stock > 0 && (
-            <div className="flex items-center space-x-4 mb-6">
-              <div>
-                <label htmlFor="quantity" className="block text-sm font-medium mb-1">Quantity</label>
-                <select 
-                  id="quantity" 
-                  value={quantity}
-                  onChange={handleQuantityChange}
-                  className="border rounded-md py-1.5 px-3"
-                >
-                  {[...Array(Math.min(10, product.stock))].map((_, i) => (
-                    <option key={i + 1} value={i + 1}>{i + 1}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <Button 
-                className="flex-1"
-                onClick={handleAddToCart}
-              >
-                <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
-              </Button>
-            </div>
-          )}
-          
-          <Separator className="my-6" />
-          
-          <div>
-            <h2 className="text-xl font-semibold mb-3">Description</h2>
-            <p className="text-gray-700">{product.description}</p>
-          </div>
-        </div>
       </div>
-      
-      {/* Product Details Tabs */}
-      <div className="mt-12">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="description">
-            <div className="mt-4">
-              <h2 className="text-xl font-semibold mb-4">Product Description</h2>
-              <p className="text-gray-600">{product.description}</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="reviews">
-            <div className="mt-4">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">Customer Reviews</h2>
-                <Button onClick={() => setShowReviewForm(true)}>
-                  Write a Review
-                </Button>
-              </div>
-
-              {showReviewForm && (
-                <div className="mb-8">
-                  <ReviewForm
-                    productId={product._id}
-                    onSuccess={() => setShowReviewForm(false)}
-                  />
-                </div>
-              )}
-
-              <ReviewList productId={product._id} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="shipping">
-            <div className="mt-4">
-              <h2 className="text-xl font-semibold mb-4">Shipping & Returns</h2>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-medium">Shipping Information</h3>
-                  <p className="text-gray-600">
-                    Free shipping on orders over $50. Standard delivery within 3-5 business days.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-medium">Returns Policy</h3>
-                  <p className="text-gray-600">
-                    Easy returns within 30 days of purchase. Items must be unused and in original packaging.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+    </>
   );
 };
 
