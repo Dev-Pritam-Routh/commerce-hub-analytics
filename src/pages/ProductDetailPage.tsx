@@ -61,6 +61,7 @@ const ProductDetailPage = () => {
     }
     
     try {
+      // Fix the addToCart call by passing only the productId and quantity
       await addToCart(product._id, quantity);
       toast.success('Product added to cart');
     } catch (error) {

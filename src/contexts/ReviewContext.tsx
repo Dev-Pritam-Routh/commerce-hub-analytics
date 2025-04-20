@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
@@ -26,7 +27,7 @@ interface ReviewContextType {
   totalReviews: number;
   ratingCounts: Record<number, number>;
   isLoading: boolean;
-  createReview: (data: Omit<Review, '_id' | 'user' | 'createdAt'>) => Promise<void>;
+  createReview: (data: any) => Promise<void>;
   updateReview: (id: string, data: Partial<Review>) => Promise<void>;
   deleteReview: (id: string) => Promise<void>;
   markReviewHelpful: (id: string) => Promise<void>;
@@ -46,7 +47,7 @@ export const ReviewProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const createReviewMutation = useMutation({
-    mutationFn: (data: Omit<Review, '_id' | 'user' | 'createdAt'>) => reviews.create(data),
+    mutationFn: (data: any) => reviews.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews'] });
     },
@@ -83,7 +84,7 @@ export const ReviewProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     totalReviews: reviewsData.totalReviews,
     ratingCounts: reviewsData.ratingCounts,
     isLoading,
-    createReview: async (data: Omit<Review, '_id' | 'user' | 'createdAt'>) => {
+    createReview: async (data: any) => {
       await createReviewMutation.mutateAsync(data);
     },
     updateReview: async (id: string, data: Partial<Review>) => {
@@ -103,24 +104,25 @@ export const ReviewProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return <ReviewContext.Provider value={value}>{children}</ReviewContext.Provider>;
 };
 
-export const useReview = (productId: string) => {
+export const useReview = (productId?: string) => {
   const context = useContext(ReviewContext);
   if (context === undefined) {
     throw new Error('useReview must be used within a ReviewProvider');
   }
 
+  // If productId is provided, fetch reviews for that product
   const { data: reviewsData = { reviews: [], averageRating: 0, totalReviews: 0, ratingCounts: {} }, isLoading } = useQuery({
     queryKey: ['reviews', productId],
-    queryFn: () => reviews.getProductReviews(productId).then(res => res.data),
+    queryFn: () => reviews.getProductReviews(productId || '').then(res => res.data),
     enabled: !!productId,
   });
 
   return {
     ...context,
-    reviews: reviewsData.reviews,
-    averageRating: reviewsData.averageRating,
-    totalReviews: reviewsData.totalReviews,
-    ratingCounts: reviewsData.ratingCounts,
-    isLoading,
+    reviews: productId ? reviewsData.reviews : context.reviews,
+    averageRating: productId ? reviewsData.averageRating : context.averageRating,
+    totalReviews: productId ? reviewsData.totalReviews : context.totalReviews,
+    ratingCounts: productId ? reviewsData.ratingCounts : context.ratingCounts,
+    isLoading: productId ? isLoading : context.isLoading,
   };
-}; 
+};

@@ -83,10 +83,11 @@ const ChatMessage = ({
           
           {/* Display referenced products if available */}
           {referenced_products && referenced_products.length > 0 && (
-            <div className="mt-4 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {referenced_products.map((product) => (
-                <ProductCard key={product.product_id} product={product} />
-              ))}
+            <div className="mt-4 w-full">
+              {/* Removing the ProductCard reference as it's not defined */}
+              <div className="text-sm text-muted-foreground">
+                Referenced products: {referenced_products.length}
+              </div>
             </div>
           )}
           
