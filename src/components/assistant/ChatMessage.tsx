@@ -1,18 +1,28 @@
+
 import { motion } from 'framer-motion';
 import { Avatar } from '@/components/ui/avatar';
 import { Bot, User } from 'lucide-react';
 import { Product } from '@/types';
-import ProductCard from './ProductCard';
 import ReactMarkdown from 'react-markdown';
+import ChatProductResponse from './ChatProductResponse';
 
 interface ChatMessageProps {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
   referenced_products?: Product[];
+  type?: string;
+  productIds?: string | string[];
 }
 
-const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMessageProps) => {
+const ChatMessage = ({ 
+  role, 
+  content, 
+  timestamp, 
+  referenced_products,
+  type,
+  productIds 
+}: ChatMessageProps) => {
   const isAssistant = role === 'assistant';
 
   // Clean and format the message content
@@ -63,6 +73,15 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
               )}
             </div>
           </div>
+          
+          {/* Display product cards if there are product IDs */}
+          {isAssistant && productIds && (
+            <div className="mt-4 w-full">
+              <ChatProductResponse productIds={productIds} />
+            </div>
+          )}
+          
+          {/* Display referenced products if available */}
           {referenced_products && referenced_products.length > 0 && (
             <div className="mt-4 w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {referenced_products.map((product) => (
@@ -70,6 +89,7 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
               ))}
             </div>
           )}
+          
           <span className="text-xs text-muted-foreground mt-1">
             {new Date(timestamp).toLocaleTimeString()}
           </span>

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import ChatProductCard from './ChatProductCard';
@@ -6,7 +7,7 @@ import { getProductById } from '@/services/productService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface ChatProductResponseProps {
-  productIds: string[];
+  productIds: string | string[];
 }
 
 const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
@@ -16,13 +17,16 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
     setIsVisible(true);
   }, []);
 
+  // Convert single productId to array if needed
+  const productIdArray = Array.isArray(productIds) ? productIds : [productIds];
+
   const { data: products, isLoading } = useQuery({
-    queryKey: ['chatProducts', productIds],
+    queryKey: ['chatProducts', productIdArray],
     queryFn: async () => {
-      const productPromises = productIds.map(id => getProductById(id));
+      const productPromises = productIdArray.map(id => getProductById(id));
       return Promise.all(productPromises);
     },
-    enabled: productIds.length > 0
+    enabled: productIdArray.length > 0
   });
 
   if (isLoading) {
@@ -55,4 +59,4 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
   );
 };
 
-export default ChatProductResponse; 
+export default ChatProductResponse;

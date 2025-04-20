@@ -16,5 +16,12 @@ export interface ChatMessage {
   timestamp: string;
   referenced_products?: Product[];
   type?: string;
-  productIds?: string[];
-} 
+  productIds?: string | string[];
+  intent?: string;
+}
+
+export interface ChatBotResponse {
+  message: string;
+  intent: string;
+  product_id?: string;
+}
