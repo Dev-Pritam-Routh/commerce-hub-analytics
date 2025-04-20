@@ -86,9 +86,9 @@ def chat_message():
         # Process the message and get response from your AI/LLM
         # This is where you'd integrate with your AI service
         response = {
-            "message": "I found some great options for you! The Samsung Galaxy S23 Ultra (₹1,24,999) is a premium smartphone with a 200MP camera and S Pen support. The OnePlus 11 5G (₹56,999) offers excellent value with its Snapdragon 8 Gen 2 processor and 100W fast charging. Both phones have great cameras and performance.",
+            "message": "Okay, great! You're looking for a toy.\n\nI have one toy in stock: It's called \"toy1\", and it is $500. Does that sound like it might be what you are looking for?",
             "intent": "product_search",
-            "product_ids": ["65f1a2b3c4d5e6f7g8h9i0j1", "65f1a2b3c4d5e6f7g8h9i0j2"]
+            "product_id": "67e107756f711e8e0fc0ed3a"
         }
         
         return jsonify(response)

@@ -1,16 +1,4 @@
 export interface Product {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-  image_url: string;
-  description?: string;
-  images?: string[];
-=======
-=======
->>>>>>> Stashed changes
   product_id: string;
   name: string;
   category: string;
@@ -27,8 +15,6 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   referenced_products?: Product[];
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+  type?: string;
+  productIds?: string[];
 } 

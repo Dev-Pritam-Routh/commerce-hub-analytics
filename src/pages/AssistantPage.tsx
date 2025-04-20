@@ -12,11 +12,14 @@ import QuickPromptButton from '@/components/assistant/QuickPromptButton';
 import ChatSidebar, { ChatSession } from '@/components/assistant/ChatSidebar';
 import ChatInput from '@/components/assistant/ChatInput';
 import { useIsMobile } from '@/hooks/use-mobile';
-import ThemeToggle from '@/components/ThemeToggle';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Product } from '@/types';
 import ChatProductResponse from '@/components/assistant/ChatProductResponse';
 import { cn } from '@/lib/utils';
+import { ChatMessage as ChatMessageType } from '@/types';
 
 // Quick prompts for empty state
 const quickPrompts = [
@@ -33,7 +36,7 @@ interface ImageSearchResponse {
 interface ChatMessageResponse {
   message: string;
   intent: string;
-  product_ids?: string[];
+  product_id?: string;
 }
 
 interface ChatRequestData {
@@ -80,16 +83,30 @@ interface ProductInfo {
   images: string[];
 }
 
+interface SessionData {
+  session_id: string;
+  title?: string;
+  timestamp: string;
+  last_message?: string;
+}
+
+interface SearchResult {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+}
+
 const AssistantPage = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [productQuery, setProductQuery] = useState<string>("");
   const [imageSearchResults, setImageSearchResults] = useState<ProductInfo[]>([]);
@@ -126,21 +143,20 @@ const AssistantPage = () => {
 
       if (response.data && response.data.sessions) {
         // Sort sessions by timestamp (newest first)
-        const sortedSessions = response.data.sessions.sort((a: any, b: any) => 
+        const sortedSessions = response.data.sessions.sort((a: SessionData, b: SessionData) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         
-        setChatSessions(sortedSessions.map((session: any) => ({
+        setChatSessions(sortedSessions.map((session: SessionData) => ({
           id: session.session_id,
           title: session.title || "New Conversation",
           timestamp: session.timestamp,
           lastMessage: session.last_message
         })));
 
-        // If no active session, create a new one
         if (!sessionId && sortedSessions.length > 0) {
           setSessionId(sortedSessions[0].session_id);
-          loadChatHistory(sortedSessions[0].session_id);
+          loadChatHistory();
         } else if (!sessionId) {
           createChatSession();
         }
@@ -229,7 +245,7 @@ const AssistantPage = () => {
       
       if (response.data && response.data.products) {
         // Add a user message with the image
-        const userMessage: Message = {
+        const userMessage: ChatMessageType = {
           role: 'user',
           content: "What products are similar to this image?",
           timestamp: new Date().toISOString()
@@ -241,7 +257,7 @@ const AssistantPage = () => {
         ).join('\n');
         
         // Add assistant message with the search results
-        const assistantMessage: Message = {
+        const assistantMessage: ChatMessageType = {
           role: 'assistant',
           content: `Here are some products that match your image:\n\n${productsList}`,
           timestamp: new Date().toISOString(),
@@ -277,14 +293,7 @@ const AssistantPage = () => {
       const response = await axios.get<ChatHistoryResponse>(`${API_URL}/chat/history?session_id=${sessionId}&limit=50`);
       
       if (response.data && response.data.messages) {
-        // Map messages to the local format
-        const formattedMessages = response.data.messages.map((msg) => ({
-          role: msg.role as 'assistant' | 'user',
-          content: msg.content,
-          timestamp: msg.timestamp
-        }));
-        
-        setMessages(formattedMessages);
+        setMessages(response.data.messages);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -339,14 +348,27 @@ const AssistantPage = () => {
   };
 
   // Function to extract product IDs from message with improved pattern matching
-  const extractProductIds = (message: string): string[] => {
+  const extractProductIds = (message: string | { product_id?: string; product_ids?: string[] }): string[] => {
+    // If message is not a string, try to get product_id from the object
+    if (typeof message !== 'string') {
+      if (message?.product_id) {
+        return [message.product_id];
+      }
+      if (message?.product_ids) {
+        return Array.isArray(message.product_ids) ? message.product_ids : [];
+      }
+      return [];
+    }
+
     // Look for product IDs in various formats
     const patterns = [
       /product_id: ([a-f0-9]{24})/i,
       /product id: ([a-f0-9]{24})/i,
       /id: ([a-f0-9]{24})/i,
       /\[([a-f0-9]{24})\]/,
-      /\(([a-f0-9]{24})\)/
+      /\(([a-f0-9]{24})\)/,
+      /"product_id": "([a-f0-9]{24})"/i,
+      /"product_id": "([0-9]+)"/i
     ];
     
     const ids = new Set<string>();
@@ -393,7 +415,7 @@ const AssistantPage = () => {
       setLoading(true);
       
       // Add user message to chat
-      const userMessage: Message = {
+      const userMessage: ChatMessageType = {
         role: 'user',
         content: message,
         timestamp: new Date().toISOString()
@@ -402,36 +424,34 @@ const AssistantPage = () => {
       
       const response = await sendMessage(message, imageFile);
       
-      // Extract product IDs from the response message
-      const productIds = extractProductIds(response.message);
+      // Handle the response based on its type
+      let responseData;
+      if (typeof response === 'string') {
+        try {
+          responseData = JSON.parse(response);
+        } catch (e) {
+          // If parsing fails, treat the string as the message content
+          responseData = { message: response };
+        }
+      } else {
+        responseData = response;
+      }
       
-      // Add assistant's message
-      const assistantMessage: Message = {
+      // Add assistant's message with the message content
+      const assistantMessage: ChatMessageType = {
         role: 'assistant',
-        content: response.message,
+        content: responseData.message,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, assistantMessage]);
       
-      // If we found any product IDs, add a product display message
-      if (productIds.length > 0) {
-        const productMessage: Message = {
+      // If we have a product_id, add a product display message
+      if (responseData.product_id) {
+        const productMessage: ChatMessageType = {
           role: 'assistant',
           content: '',
           type: 'products',
-          productIds: productIds,
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, productMessage]);
-      }
-      
-      // Also check for product IDs in the response data if available
-      if (response.product_ids && response.product_ids.length > 0) {
-        const productMessage: Message = {
-          role: 'assistant',
-          content: '',
-          type: 'products',
-          productIds: response.product_ids,
+          productIds: [responseData.product_id],
           timestamp: new Date().toISOString()
         };
         setMessages(prev => [...prev, productMessage]);
@@ -476,7 +496,8 @@ const AssistantPage = () => {
     setMessages([]);
     setSearchResults([]);
     setSearchQuery("");
-    loadChatHistory(selectedSessionId);
+    setSessionId(selectedSessionId);
+    loadChatHistory();
     
     // Close sidebar on mobile after selection
     if (isMobile) {
@@ -576,7 +597,6 @@ const AssistantPage = () => {
             </button>
             <h1 className="text-xl font-bold text-gold">Shopping Assistant</h1>
           </div>
-          {!isSidebarOpen && <ThemeToggle />}
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -623,9 +643,50 @@ const AssistantPage = () => {
                         : "bg-white dark:bg-gray-800"
                     )}
                   >
-                    {message.content}
-                    {message.type === 'products' && message.productIds && (
-                      <ChatProductResponse productIds={message.productIds} />
+                    {message.role === "assistant" ? (
+                      <>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                          components={{
+                            code({ node, className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              return match ? (
+                                <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md overflow-x-auto">
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                </div>
+                              ) : (
+                                <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                            p({ children }) {
+                              return <p className="mb-2">{children}</p>;
+                            },
+                            ul({ children }) {
+                              return <ul className="list-disc pl-4 mb-2">{children}</ul>;
+                            },
+                            ol({ children }) {
+                              return <ol className="list-decimal pl-4 mb-2">{children}</ol>;
+                            },
+                            li({ children }) {
+                              return <li className="mb-1">{children}</li>;
+                            }
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                        {message.type === 'products' && message.productIds && (
+                          <div className="mt-4">
+                            <ChatProductResponse productIds={message.productIds} />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      message.content
                     )}
                   </div>
                 </div>
@@ -675,11 +736,6 @@ const AssistantPage = () => {
         </main>
 
         <div className="relative">
-          <ChatInput 
-            onSendMessage={handleSendMessage} 
-            onImageSearch={handleImageSearch}
-            loading={loading} 
-          />
           <ChatInput 
             onSendMessage={handleSendMessage} 
             onImageSearch={handleImageSearch}
