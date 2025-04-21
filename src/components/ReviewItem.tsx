@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useReview } from '../contexts/ReviewContext';
 import { Button } from './ui/button';
@@ -25,6 +26,7 @@ interface ReviewItemProps {
 }
 
 export const ReviewItem: React.FC<ReviewItemProps> = ({ review }) => {
+  // No need to pass an argument to useReview here
   const { markReviewHelpful, reportReview } = useReview();
   const [hasMarkedHelpful, setHasMarkedHelpful] = useState(false);
 
@@ -115,4 +117,4 @@ export const ReviewItem: React.FC<ReviewItemProps> = ({ review }) => {
       </div>
     </div>
   );
-}; 
+};

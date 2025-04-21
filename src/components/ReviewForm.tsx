@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -36,7 +37,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
   existingReview,
   onSuccess,
 }) => {
-  const { createReview, updateReview } = useReview();
+  // Pass productId to useReview hook
+  const { createReview, updateReview } = useReview(productId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<string[]>(existingReview?.images || []);
 
@@ -58,9 +60,14 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     try {
       setIsSubmitting(true);
       const reviewData = {
-        ...data,
         productId,
+        rating: data.rating,
+        title: data.title,
+        comment: data.comment,
         images,
+        product: productId, // Add missing required field
+        verifiedPurchase: false, // Add missing required field
+        helpfulVotes: 0, // Add missing required field
       };
 
       if (existingReview) {
@@ -133,4 +140,4 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       </Button>
     </form>
   );
-}; 
+};

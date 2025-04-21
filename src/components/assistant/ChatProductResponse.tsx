@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import ChatProductCard from './ChatProductCard';
@@ -6,7 +7,7 @@ import { getProductById } from '@/services/productService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface ChatProductResponseProps {
-  productIds: string[];
+  productIds: string | string[];
 }
 
 // Define the expected product structure
@@ -103,4 +104,4 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
   );
 };
 
-export default ChatProductResponse; 
+export default ChatProductResponse;

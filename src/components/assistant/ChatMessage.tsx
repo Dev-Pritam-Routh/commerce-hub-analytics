@@ -1,8 +1,8 @@
+
 import { motion } from 'framer-motion';
 import { Avatar } from '@/components/ui/avatar';
 import { Bot, User } from 'lucide-react';
 import { Product } from '@/types';
-import ProductCard from './ProductCard';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -13,9 +13,18 @@ interface ChatMessageProps {
   content: string;
   timestamp: string;
   referenced_products?: Product[];
+  type?: string;
+  productIds?: string | string[];
 }
 
-const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMessageProps) => {
+const ChatMessage = ({ 
+  role, 
+  content, 
+  timestamp, 
+  referenced_products,
+  type,
+  productIds 
+}: ChatMessageProps) => {
   const isAssistant = role === 'assistant';
 
   // Extract product references from content
@@ -151,6 +160,16 @@ const ChatMessage = ({ role, content, timestamp, referenced_products }: ChatMess
               ))}
             </div>
           )}
+          
+          {/* Display referenced products if available */}
+          {referenced_products && referenced_products.length > 0 && (
+            <div className="mt-4 w-full">
+              <div className="text-sm text-muted-foreground">
+                Referenced products: {referenced_products.length}
+              </div>
+            </div>
+          )}
+          
           <span className="text-xs text-muted-foreground mt-1">
             {new Date(timestamp).toLocaleTimeString()}
           </span>

@@ -14,7 +14,8 @@ const WishlistPage: React.FC = () => {
 
   const handleAddToCart = async (product: any) => {
     try {
-      await addToCart(product.product._id, 1);
+      // Fix the addToCart call by passing only the productId
+      await addToCart(product.product._id);
       toast.success('Product added to cart');
     } catch (error) {
       toast.error('Failed to add product to cart');
@@ -112,4 +113,4 @@ const WishlistPage: React.FC = () => {
   );
 };
 
-export default WishlistPage; 
+export default WishlistPage;
