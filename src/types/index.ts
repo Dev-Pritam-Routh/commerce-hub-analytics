@@ -1,13 +1,13 @@
 export interface Product {
-  product_id: string;
+  _id: string;
   name: string;
-  category: string;
   price: number;
-  image_url: string;
-  description?: string;
-  rating?: number;
-  similarity?: number;
-  images?: string[];
+  discountedPrice?: number;
+  images: string[];
+  averageRating: number;
+  stock: number;
+  category: string;
+  seller: string | { _id: string; name: string };
 }
 
 export interface ChatMessage {
@@ -17,4 +17,26 @@ export interface ChatMessage {
   referenced_products?: Product[];
   type?: string;
   productIds?: string[];
+}
+
+export interface ChatMessageResponse {
+  message: string;
+  intent: string;
+  product_id: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  timestamp: string;
+}
+
+export interface SearchResponse {
+  products: Product[];
+}
+
+export interface ProductResponse {
+  success: boolean;
+  product: Product | null;
+  error?: string;
 } 
