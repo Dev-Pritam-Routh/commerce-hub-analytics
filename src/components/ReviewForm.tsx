@@ -1,143 +1,71 @@
-
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useReview } from '@/contexts/ReviewContext';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Rating } from './ui/rating';
-import { ImageUpload } from './ui/image-upload';
-import { useReview } from '../contexts/ReviewContext';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { toast } from 'sonner';
-
-const reviewSchema = z.object({
-  rating: z.number().min(1).max(5),
-  title: z.string().min(5).max(100),
-  comment: z.string().min(10).max(1000),
-  images: z.array(z.string()).optional(),
-});
-
-type ReviewFormData = z.infer<typeof reviewSchema>;
+import { Rating } from '@smastrom/react-rating';
+import '@smastrom/react-rating/style.css';
 
 interface ReviewFormProps {
   productId: string;
-  existingReview?: {
-    _id: string;
-    rating: number;
-    title: string;
-    comment: string;
-    images?: string[];
-  };
-  onSuccess?: () => void;
+  onClose?: () => void;
 }
 
-export const ReviewForm: React.FC<ReviewFormProps> = ({
-  productId,
-  existingReview,
-  onSuccess,
-}) => {
-  // Pass productId to useReview hook
-  const { createReview, updateReview } = useReview(productId);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [images, setImages] = useState<string[]>(existingReview?.images || []);
+const ReviewForm = ({ productId, onClose }: ReviewFormProps) => {
+  const { createReview } = useReview();
+  const [rating, setRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<ReviewFormData>({
-    resolver: zodResolver(reviewSchema),
-    defaultValues: {
-      rating: existingReview?.rating || 0,
-      title: existingReview?.title || '',
-      comment: existingReview?.comment || '',
-    },
-  });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
-  const onSubmit = async (data: ReviewFormData) => {
     try {
-      setIsSubmitting(true);
-      const reviewData = {
+      await createReview({
         productId,
-        rating: data.rating,
-        title: data.title,
-        comment: data.comment,
-        images,
-        product: productId, // Add missing required field
-        verifiedPurchase: false, // Add missing required field
-        helpfulVotes: 0, // Add missing required field
-      };
+        rating,
+        comment,
+        userId: '', // This will be filled by the backend
+        updatedAt: new Date().toISOString(),
+        product: productId, // Add missing property
+        verifiedPurchase: false, // Add missing property
+        helpfulVotes: 0 // Add missing property
+      });
 
-      if (existingReview) {
-        await updateReview(existingReview._id, reviewData);
-        toast.success('Review updated successfully');
-      } else {
-        await createReview(reviewData);
-        toast.success('Review submitted successfully');
-      }
-
-      onSuccess?.();
+      toast.success('Review submitted successfully!');
+      if (onClose) onClose();
     } catch (error) {
-      toast.error('Failed to submit review');
+      toast.error('Failed to submit review. Please try again.');
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
-        <label className="block text-sm font-medium mb-2">Rating</label>
-        <Rating
-          value={existingReview?.rating || 0}
-          onChange={(value) => setValue('rating', value)}
-        />
-        {errors.rating && (
-          <p className="text-sm text-red-500 mt-1">{errors.rating.message}</p>
-        )}
+        <Label htmlFor="rating">Rating</Label>
+        <Rating style={{ maxWidth: 200 }} value={rating} onChange={setRating} />
       </div>
-
       <div>
-        <label className="block text-sm font-medium mb-2">Title</label>
-        <Input
-          {...register('title')}
-          placeholder="Enter a title for your review"
-        />
-        {errors.title && (
-          <p className="text-sm text-red-500 mt-1">{errors.title.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">Review</label>
+        <Label htmlFor="comment">Comment</Label>
         <Textarea
-          {...register('comment')}
-          placeholder="Share your experience with this product"
-          rows={5}
-        />
-        {errors.comment && (
-          <p className="text-sm text-red-500 mt-1">{errors.comment.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-2">Photos</label>
-        <ImageUpload
-          value={images}
-          onChange={setImages}
-          maxFiles={5}
+          id="comment"
+          placeholder="Write your review here"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          required
         />
       </div>
-
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full"
-      >
-        {isSubmitting ? 'Submitting...' : existingReview ? 'Update Review' : 'Submit Review'}
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Submitting...' : 'Submit Review'}
       </Button>
     </form>
   );
 };
+
+export default ReviewForm;
