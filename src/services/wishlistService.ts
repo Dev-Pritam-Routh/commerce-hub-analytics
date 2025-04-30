@@ -1,24 +1,36 @@
 
 import api from './api';
-import { Product } from '@/types';
 
-// Get user's wishlist items
-export const getWishlist = async (): Promise<{ products: Product[] }> => {
-  const response = await api.get('/wishlist');
-  return response.data;
+interface WishlistResponse {
+  products: any[];
+}
+
+export const getWishlist = async (): Promise<WishlistResponse> => {
+  try {
+    const response = await api.get('/wishlist');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching wishlist:', error);
+    throw error;
+  }
 };
 
-// Add a product to wishlist
-export const addToWishlist = async (productId: string): Promise<void> => {
-  await api.post(`/wishlist/add/${productId}`);
+export const addToWishlist = async (productId: string): Promise<any> => {
+  try {
+    const response = await api.post('/wishlist', { productId });
+    return response.data;
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    throw error;
+  }
 };
 
-// Remove a product from wishlist
-export const removeFromWishlist = async (productId: string): Promise<void> => {
-  await api.delete(`/wishlist/remove/${productId}`);
-};
-
-// Clear the entire wishlist
-export const clearWishlist = async (): Promise<void> => {
-  await api.delete('/wishlist/clear');
+export const removeFromWishlist = async (productId: string): Promise<any> => {
+  try {
+    const response = await api.delete(`/wishlist/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error removing from wishlist:', error);
+    throw error;
+  }
 };

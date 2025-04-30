@@ -1,12 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { ChatMessage as ChatMessageType } from '@/types';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import ChatProductCard from './ChatProductCard';
 import ChatProductResponse from './ChatProductResponse';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -57,16 +56,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             )}
           >
             <ReactMarkdown
+              // @ts-ignore - Ignoring type issues with remarkGfm
               remarkPlugins={[remarkGfm]}
               components={{
-                code({ node, className, children, ...props }) {
+                code({node, inline, className, children, ...props}) {
                   const match = /language-(\w+)/.exec(className || '');
-                  return !match ? (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  ) : (
+                  return !inline && match ? (
                     <SyntaxHighlighter
+                      // @ts-ignore - SyntaxHighlighter has issues with TypeScript types
                       style={dracula}
                       language={match[1]}
                       PreTag="div"
@@ -74,6 +71,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                     >
                       {String(children).replace(/\n$/, '')}
                     </SyntaxHighlighter>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
                   );
                 }
               }}

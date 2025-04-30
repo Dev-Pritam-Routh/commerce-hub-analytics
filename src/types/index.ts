@@ -1,3 +1,4 @@
+
 export interface Product {
   _id: string;
   name: string;
@@ -8,6 +9,17 @@ export interface Product {
   stock: number;
   category: string;
   seller: string | { _id: string; name: string };
+  description?: string;
+}
+
+export interface CartProduct {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  quantity: number;
+  stock?: number;
+  sellerId?: string;
 }
 
 export interface ChatMessage {

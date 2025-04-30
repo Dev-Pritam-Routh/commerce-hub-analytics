@@ -45,12 +45,16 @@ const WishlistPage = () => {
   };
 
   const handleAddToCart = (product: Product) => {
+    const sellerId = typeof product.seller === 'string' ? product.seller : product.seller._id;
+    
     addToCart({
       id: product._id,
       quantity: 1,
       price: product.discountedPrice || product.price,
       name: product.name,
-      image: product.images[0] || '/placeholder.svg'
+      image: product.images[0] || '/placeholder.svg',
+      stock: product.stock,
+      sellerId: sellerId
     });
     toast.success(`${product.name} added to cart`);
   };
