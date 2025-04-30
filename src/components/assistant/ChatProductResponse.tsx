@@ -7,7 +7,7 @@ import { getProductById } from '@/services/productService';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface ChatProductResponseProps {
-  productIds: string | string[];
+  productIds: string[];
 }
 
 // Define the expected product structure
@@ -32,7 +32,9 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
   }, []);
 
   // Filter out any invalid IDs before querying
-  const validProductIds = productIds.filter(id => id && id.trim().length > 0);
+  const validProductIds = Array.isArray(productIds) 
+    ? productIds.filter(id => id && id.trim().length > 0)
+    : [];
 
   // Skip query if no valid IDs
   const enabled = validProductIds.length > 0;

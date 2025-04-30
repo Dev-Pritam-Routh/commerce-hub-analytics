@@ -1,25 +1,24 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
-import { Bot, ArrowLeft } from 'lucide-react';
+import { Send, Paperclip, ArrowLeft, MessageCircle } from 'lucide-react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import config from '@/config';
 import ChatMessage from '@/components/assistant/ChatMessage';
 import QuickPromptButton from '@/components/assistant/QuickPromptButton';
-import ChatSidebar, { ChatSession as ChatSessionImport } from '@/components/assistant/ChatSidebar';
-import ChatInput from '@/components/assistant/ChatInput';
+import ChatSidebar from '@/components/assistant/ChatSidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-// Import as ProductType to avoid conflict with local interface
 import { Product as ProductType } from '@/types';
 import ChatProductResponse from '@/components/assistant/ChatProductResponse';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 // Quick prompts for empty state
 const quickPrompts = [
@@ -29,8 +28,15 @@ const quickPrompts = [
   "Show me similar products to this image"
 ];
 
+// Types definitions
 interface ImageSearchResponse {
   products: ProductType[];
+}
+
+interface ImageSearchMessageResponse {
+  message: string;
+  intent: string;
+  product_id: string[] | string | null;
 }
 
 interface ChatMessageResponse {
@@ -45,28 +51,14 @@ interface ChatRequestData {
   image_data?: string;
 }
 
-interface ProductResponse {
-  success: boolean;
-  product: ProductType;
-  error?: string;
-}
-
-// Type definition that extends ProductType to include all properties used
-interface LocalProduct extends ProductType {
-  description?: string;
-  rating?: number;
-  similarity?: number;
-}
-
-// Update referenced_products type
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
-  referenced_products?: LocalProduct[];
-  type?: string; // Can be 'products', 'general', or any intent from the API
-  intent?: string; // Store the intent from the API response
-  productId?: string[]; // Array of product IDs
+  referenced_products?: ProductType[];
+  type?: string;
+  intent?: string;
+  productId?: string[];
 }
 
 interface ChatSessionResponse {
@@ -78,40 +70,10 @@ interface ChatHistoryResponse {
   messages: Message[];
 }
 
-interface SearchResponse {
-  message: string;
-  products: ProductType[];
-}
-
-interface ProductInfo {
-  product_id: string;
-  name: string;
-  price: number;
-  category: string;
-  image_url: string;
-  images: string[];
-}
-
-// Our local definition of ChatSession for backend compatibility
 interface ChatSession {
   id: string;
   title: string;
   timestamp: string;
-  session_id?: string; // Added to handle backend response format
-}
-
-interface SearchResult {
-  _id: string;
-  name: string;
-  price: number;
-  image: string;
-}
-
-// Define an interface for the new image search response format
-interface ImageSearchMessageResponse {
-  message: string;
-  intent: string;
-  product_id: string | string[] | null;
 }
 
 const AssistantPage = () => {
@@ -122,25 +84,15 @@ const AssistantPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [productQuery, setProductQuery] = useState<string>("");
-  const [imageSearchResults, setImageSearchResults] = useState<ProductInfo[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // API URL from config
   const API_URL = config.assistantApiUrl;
-
-  // Log the API configuration for debugging
-  useEffect(() => {
-    console.log("API configuration:", {
-      assistantApiUrl: config.assistantApiUrl,
-      chatEndpoints: config.chatEndpoints,
-      // Access safely without message property
-      fullURL: `${config.assistantApiUrl}${config.chatEndpoints?.sendMessage || '/chat/message'}`
-    });
-  }, []);
 
   // Load sessions when component mounts
   useEffect(() => {
@@ -170,11 +122,11 @@ const AssistantPage = () => {
 
       if (response.data && response.data.sessions) {
         // Sort sessions by timestamp (newest first)
-        const sortedSessions = response.data.sessions.sort((a: ChatSessionImport, b: ChatSessionImport) => 
+        const sortedSessions = response.data.sessions.sort((a: any, b: any) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         
-        setChatSessions(sortedSessions.map((session: ChatSessionImport) => ({
+        setChatSessions(sortedSessions.map((session: any) => ({
           id: session.session_id,
           title: session.title || "New Conversation",
           timestamp: session.timestamp,
@@ -266,38 +218,42 @@ const AssistantPage = () => {
       const base64Data = await convertImageToBase64(imageFile);
       
       // Send to image search endpoint
-      const response = await axios.post<ImageSearchResponse | ImageSearchMessageResponse>(`${API_URL}/image-search`, {
-        image_data: base64Data
-      });
+      const response = await axios.post<ImageSearchResponse | ImageSearchMessageResponse>(
+        `${API_URL}/image-search`, 
+        { image_data: base64Data }
+      );
       
       console.log("Image search response:", response.data);
-      
-        // Add a user message with the image
-        const userMessage: Message = {
-          role: 'user',
-          content: "What products are similar to this image?",
-          timestamp: new Date().toISOString()
-        };
+        
+      // Add a user message with the image
+      const userMessage: Message = {
+        role: 'user',
+        content: "What products are similar to this image?",
+        timestamp: new Date().toISOString()
+      };
         
       setMessages(prev => [...prev, userMessage]);
       
-      // Check if we have a valid response with the new format
-      if (response.data && response.data.message) {
-        // Backend is using the new format with message, intent, and product_id
+      // Handle the API response based on whether it has the expected fields
+      const responseData = response.data as any;
+      
+      // Check if we're dealing with the new format (message + intent + product_id)
+      if (responseData.message !== undefined) {
+        // Add assistant message
         const assistantMessage: Message = {
           role: 'assistant',
-          content: response.data.message,
+          content: responseData.message,
           timestamp: new Date().toISOString(),
-          type: response.data.intent || 'image_search'
+          type: responseData.intent || 'image_search'
         };
         
         setMessages(prev => [...prev, assistantMessage]);
         
         // Handle product ID if it exists
-        if (response.data.product_id) {
-          const productIds = Array.isArray(response.data.product_id) 
-            ? response.data.product_id 
-            : [response.data.product_id];
+        if (responseData.product_id) {
+          const productIds = Array.isArray(responseData.product_id) 
+            ? responseData.product_id 
+            : [responseData.product_id];
           
           // Add product message if we have valid IDs
           if (productIds.length > 0) {
@@ -313,24 +269,22 @@ const AssistantPage = () => {
           }
         }
       }
-      // Fall back to the old format if necessary
-      else if (response.data && response.data.products) {
-        // Add assistant message with the search results
+      // Old format (products array)
+      else if (responseData.products && Array.isArray(responseData.products)) {
+        // Add assistant message
         const assistantMessage: Message = {
           role: 'assistant',
-          content: `I found ${response.data.products.length} products similar to your image.`,
+          content: `I found ${responseData.products.length} products similar to your image.`,
           timestamp: new Date().toISOString(),
           type: 'product_search'
         };
         
         setMessages(prev => [...prev, assistantMessage]);
         
-        // Only add product IDs if there are actual products
-        if (response.data.products.length > 0) {
-          // Extract product IDs
-          const productIds = response.data.products.map(p => p._id);
+        // Add product IDs if there are any
+        if (responseData.products.length > 0) {
+          const productIds = responseData.products.map((p: any) => p._id);
           
-          // Add a product message (same format as chat product responses)
           const productMessage: Message = {
             role: 'assistant',
             content: '',
@@ -342,7 +296,7 @@ const AssistantPage = () => {
           setMessages(prev => [...prev, productMessage]);
         }
       } else {
-        // Handle case with no products found
+        // No products found case
         const noProductsMessage: Message = {
           role: 'assistant',
           content: 'Sorry, I couldn\'t find any products matching this image.',
@@ -366,6 +320,8 @@ const AssistantPage = () => {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setLoading(false);
+      setImageFile(null);
+      setImagePreview(null);
     }
   };
 
@@ -395,75 +351,6 @@ const AssistantPage = () => {
     }
   };
 
-  // Parse product IDs from message content
-  const parseProductIds = (content: string): string[] => {
-    // Look for product IDs in the format "Product ID: XXXX" or similar patterns
-    const regex = /Product ID: ([a-f0-9]{24})/g;
-    const matches = [...content.matchAll(regex)];
-    return matches.map(match => match[1]);
-  };
-
-  // Search products based on a query
-  const searchProducts = async (query: string): Promise<SearchResponse['products']> => {
-    try {
-      const response = await axios.get<SearchResponse>(`${API_URL}/search?q=${encodeURIComponent(query)}&limit=5`);
-      return response.data.products || [];
-    } catch (error) {
-      console.error('Error searching products:', error);
-      return [];
-    }
-  };
-
-  // Function to fetch product details with improved error handling
-  const fetchProductDetails = async (productId: string): Promise<ProductType | null> => {
-    try {
-      const response = await axios.get<ProductResponse>(`${API_URL}/products/${productId}`);
-      
-      if (response.data.success && response.data.product) {
-        return response.data.product;
-      }
-      
-      console.error('Error fetching product details:', response.data.error);
-      return null;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 404) {
-          console.error(`Product ${productId} not found`);
-        } else {
-          console.error(`Error fetching product ${productId}:`, error.message);
-        }
-      } else {
-        console.error(`Unexpected error fetching product ${productId}:`, error);
-      }
-      return null;
-    }
-  };
-
-  // Function to extract product IDs from message with improved pattern matching
-  const extractProductIds = (message: string): string[] => {
-    // Look for product IDs in various formats
-    const patterns = [
-      /product_id: ([a-f0-9]{24})/i,
-      /product id: ([a-f0-9]{24})/i,
-      /id: ([a-f0-9]{24})/i,
-      /\[([a-f0-9]{24})\]/,
-      /\(([a-f0-9]{24})\)/
-    ];
-    
-    const ids = new Set<string>();
-    patterns.forEach(pattern => {
-      const matches = message.match(new RegExp(pattern, 'g'));
-      if (matches) {
-        matches.forEach(match => {
-          const id = match.match(pattern)?.[1];
-          if (id) ids.add(id);
-        });
-      }
-    });
-    
-    return Array.from(ids);
-  };
-
   const sendMessage = async (message: string, imageFile: File | null) => {
     try {
       // Prepare request data
@@ -477,10 +364,6 @@ const AssistantPage = () => {
         const base64Data = await convertImageToBase64(imageFile);
         requestData.image_data = base64Data;
       }
-      
-      // Log the request
-      console.log("Sending request to:", `${API_URL}/chat/message`);
-      console.log("Request data:", requestData);
       
       // Use a custom axios configuration to preserve the raw response
       const rawResponse = await fetch(`${API_URL}/chat/message`, {
@@ -500,7 +383,6 @@ const AssistantPage = () => {
       try {
         parsedData = JSON.parse(rawData);
         console.log("Manually parsed response:", parsedData);
-        console.log("product_id in parsed data:", parsedData.product_id);
       } catch (e) {
         console.error("Error parsing raw response:", e);
       }
@@ -509,20 +391,15 @@ const AssistantPage = () => {
       const response = await axios.post<ChatMessageResponse>(`${API_URL}/chat/message`, requestData);
       
       console.log("Raw API response from axios:", response.data);
-      console.log("Response product_id type:", typeof response.data.product_id);
-      console.log("Response product_id value:", response.data.product_id);
       
-      // Use the manually parsed data if available and if it has product_id
-      // This is to diagnose if axios is somehow dropping the field
-      const messageData = parsedData && parsedData.product_id !== undefined 
-        ? parsedData 
-        : response.data;
+      // Use the manually parsed data if available
+      const messageData = parsedData || response.data;
       
       // Check if messageData.message exists and is an object
       const isNestedMessage = 
         messageData.message !== null && 
         typeof messageData.message === 'object' &&
-        'message' in (messageData.message as Record<string, unknown>);
+        'message' in messageData.message;
       
       // Handle nested message structure
       if (isNestedMessage) {
@@ -565,53 +442,51 @@ const AssistantPage = () => {
       };
       setMessages(prev => [...prev, userMessage]);
       
-      // Get response from API
-      const response = await sendMessage(message, imageFile);
+      // Clear input field
+      setInputMessage('');
       
-      console.log("API Response:", response); // Debug log
+      // Handle image search if an image is provided
+      if (imageFile) {
+        await handleImageSearch(imageFile);
+        return;
+      }
+      
+      // Get response from API
+      const response = await sendMessage(message, null);
+      
+      console.log("API Response:", response);
       
       // Add assistant's message with proper formatting
       const assistantMessage: Message = {
         role: 'assistant',
-        content: typeof response.message === 'string' ? response.message : JSON.stringify(response.message) || "",
+        content: typeof response.message === 'string' ? response.message : JSON.stringify(response.message),
         timestamp: new Date().toISOString(),
-        // Add intent to the message for any special handling in UI
         type: response.intent || "general"
       };
       setMessages(prev => [...prev, assistantMessage]);
       
-      // Process product IDs - check if we have a non-null product_id
-      console.log("Processing product IDs from:", response.product_id);
-      
-      // Fix for case when axios might have dropped the product_id field
-      // This is a temporary workaround to check if the manually parsed data has a product_id
-      // that got lost in the axios response
+      // Process product IDs if available
       let productId = response.product_id;
       
-      // If we're rendering a product response based on intent, but no product_id exists
+      // If we're rendering a product response but no product_id was returned
       if (!productId && response.intent === 'product_search') {
-        // Make a direct API call to get product recommendations based on the message
+        // Try to get product recommendations based on the message
         try {
           const searchResponse = await axios.get(`${API_URL}/search?q=${encodeURIComponent(message.substring(0, 100))}&limit=1`);
-          if (searchResponse.data && searchResponse.data.products && searchResponse.data.products.length > 0) {
+          if (searchResponse.data?.products?.length > 0) {
             const product = searchResponse.data.products[0];
-            console.log("Retrieved product from search:", product);
-            
-            // Handle different field name variations for product ID
             productId = product._id || product.product_id || product.id;
-            
-            console.log("Extracted product ID from search result:", productId);
           }
         } catch (err) {
           console.error("Error fetching product recommendations:", err);
         }
       }
       
-      // Convert to array if it's a string
+      // Convert product IDs to array
       let productIdsArray: string[] = [];
       
       if (Array.isArray(productId)) {
-        productIdsArray = [...productId]; // Make a copy
+        productIdsArray = [...productId];
       } else if (typeof productId === 'string') {
         productIdsArray = [productId];
       }
@@ -627,7 +502,7 @@ const AssistantPage = () => {
             role: 'assistant',
             content: '',
             type: 'products',
-          productId: validProductIds,
+            productId: validProductIds,
             timestamp: new Date().toISOString()
           };
           setMessages(prev => [...prev, productMessage]);
@@ -639,29 +514,16 @@ const AssistantPage = () => {
       setLoading(false);
     }
   };
-  
-  // Update session title based on first user message
-  const updateSessionTitle = (firstMessage: string) => {
-    // Truncate to first 30 chars
-    const title = firstMessage.length > 30 
-      ? firstMessage.substring(0, 27) + '...' 
-      : firstMessage;
-    
-    setChatSessions(prev => prev.map(session => 
-      session.id === sessionId ? { ...session, title } : session
-    ));
-  };
 
   // Handle quick prompt selection
   const handleQuickPromptClick = (prompt: string) => {
+    setInputMessage(prompt);
     handleSendMessage(prompt, null);
   };
   
   // Handle starting a new chat
   const handleNewChat = () => {
     setMessages([]);
-    setSearchResults([]);
-    setSearchQuery("");
     createChatSession();
   };
 
@@ -670,9 +532,8 @@ const AssistantPage = () => {
     if (selectedSessionId === sessionId) return;
     
     setMessages([]);
-    setSearchResults([]);
-    setSearchQuery("");
     loadChatHistory(selectedSessionId);
+    setSessionId(selectedSessionId);
     
     // Close sidebar on mobile after selection
     if (isMobile) {
@@ -685,54 +546,45 @@ const AssistantPage = () => {
     setIsSidebarOpen(prev => !prev);
   };
 
-  // Add ProductCard component
-  const ProductCard = ({ product }: { product: LocalProduct }) => {
-    const [isVisible, setIsVisible] = useState(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      
+      // Create preview for the image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-    useEffect(() => {
-      setIsVisible(true);
-    }, []);
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden my-4"
-      >
-        <div className="relative h-48">
-          <img 
-            src={product.images[0]} 
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            {product.name}
-          </h3>
-          <p className="text-2xl font-bold text-gold mb-2">
-            ${product.price.toFixed(2)}
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            {product.category}
-          </p>
-          {product.description && (
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              {product.description}
-            </p>
-          )}
-          {product.rating && (
-            <div className="flex items-center mt-2">
-              <span className="text-yellow-400">★</span>
-              <span className="ml-1 text-sm text-gray-600 dark:text-gray-400">
-                {product.rating.toFixed(1)}
-              </span>
-            </div>
-          )}
-        </div>
-      </motion.div>
-    );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(inputMessage, imageFile);
+    }
   };
 
   useEffect(() => {
@@ -742,7 +594,7 @@ const AssistantPage = () => {
   }, [messages]);
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen w-full bg-[#1A1F2C] text-slate-100 flex overflow-hidden">
       {/* Sidebar */}
       <ChatSidebar 
         onNewChat={handleNewChat}
@@ -761,140 +613,168 @@ const AssistantPage = () => {
         }`}
       >
         {/* Header */}
-        <header className="sticky top-0 z-30 h-16 md:h-20 px-4 border-b flex items-center justify-between bg-background">
+        <header className="sticky top-0 z-30 h-16 px-4 border-b border-slate-700/50 flex items-center justify-between bg-[#1A1F2C]/90 backdrop-blur-md">
           <div className="flex items-center">
-            <button 
+            <Button
+              variant="ghost" 
+              size="icon"
               onClick={toggleSidebar}
-              className="p-2 mr-2 rounded-md hover:bg-accent"
+              className="p-2 mr-2 rounded-md text-slate-300 hover:bg-slate-700/50"
               aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
             >
               <ArrowLeft className={`h-5 w-5 transition-transform ${isSidebarOpen ? "rotate-0" : "rotate-180"}`} />
-            </button>
-            <h1 className="text-xl font-bold text-gold">Shopping Assistant</h1>
+            </Button>
+            <div className="flex items-center gap-3">
+              <MessageCircle className="h-5 w-5 text-[#9b87f5]" />
+              <h1 className="text-xl font-semibold text-slate-200">Chat</h1>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center max-w-md"
-              >
-                <Avatar className="h-16 w-16 mx-auto mb-4 bg-gold/10">
-                  <Bot className="h-8 w-8 text-gold" />
-                </Avatar>
-                <h2 className="text-2xl font-bold text-gold mb-2">Shopping Assistant</h2>
-                <p className="text-muted-foreground mb-8">
-                  Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {quickPrompts.map((prompt, index) => (
-                    <QuickPromptButton 
-                      key={index} 
-                      prompt={prompt} 
-                      onClick={handleQuickPromptClick}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            </div>
-          ) : (
-            <div className="max-w-3xl mx-auto space-y-4">
-              {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "flex",
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    )}
-                  >
-                  {/* Only render content if it's not an empty product-only message */}
-                  {((typeof message.content === 'string' && message.content.trim()) || message.role === "user") && (
-                      <div
-                        className={cn(
-                          "max-w-[80%] rounded-lg p-4",
-                          message.role === "user"
-                            ? "bg-primary text-white"
-                            : "bg-white dark:bg-gray-800"
-                        )}
-                      >
-                        {message.role === "assistant" ? (
-                          <ReactMarkdown
-                            remarkPlugins={[remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
-                            components={{
-                              // Your existing component definitions...
-                            }}
-                          >
-                            {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
-                          </ReactMarkdown>
-                        ) : (
-                        <span>{typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}</span>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Render product cards if available */}
-                    {message.type === 'products' && message.productId && message.productId.length > 0 && (
-                      <div className="w-full mt-2">
-                        <ChatProductResponse productIds={message.productId} />
-                      </div>
-                    )}
-                  </div>
-                ))}
-             
-              {loading && (
+        {/* Messages area with glass card */}
+        <main className="flex-1 overflow-hidden p-4 relative">
+          <div className="absolute inset-4 backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl"></div>
+          
+          <div 
+            ref={scrollRef}
+            className="h-full overflow-y-auto px-2 py-6 relative z-10 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+          >
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center">
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex justify-start"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center max-w-md"
                 >
-                  <div className="bg-muted rounded-lg p-3 flex space-x-2">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" 
-                         style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" 
-                         style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" 
-                         style={{ animationDelay: '300ms' }} />
+                  <Avatar className="h-16 w-16 mx-auto mb-6 bg-[#9b87f5]/20 border border-[#9b87f5]/30">
+                    <MessageCircle className="h-8 w-8 text-[#9b87f5]" />
+                  </Avatar>
+                  <h2 className="text-2xl font-bold text-slate-200 mb-3">Shopping Assistant</h2>
+                  <p className="text-slate-400 mb-8">
+                    Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {quickPrompts.map((prompt, index) => (
+                      <QuickPromptButton 
+                        key={index} 
+                        prompt={prompt} 
+                        onClick={handleQuickPromptClick}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto space-y-2">
+                <AnimatePresence initial={false}>
+                  {messages.map((message, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChatMessage message={message} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                
+                {loading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start px-3 py-6"
+                  >
+                    <div className="flex space-x-3">
+                      <div className="w-2 h-2 bg-[#9b87f5] rounded-full animate-bounce" 
+                          style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-[#9b87f5]/80 rounded-full animate-bounce" 
+                          style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-[#9b87f5]/60 rounded-full animate-bounce" 
+                          style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </motion.div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+          
+          {/* Input area */}
+          <div className="absolute bottom-8 left-0 right-0 px-8 z-20">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage(inputMessage, imageFile);
+              }}
+              className="relative max-w-3xl mx-auto"
+            >
+              {/* Preview image if any */}
+              {imagePreview && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute -top-20 left-2"
+                >
+                  <div className="relative inline-block">
+                    <img 
+                      src={imagePreview} 
+                      alt="Upload preview" 
+                      className="h-16 w-16 object-cover rounded-lg border border-slate-600" 
+                    />
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center"
+                    >
+                      ×
+                    </button>
                   </div>
                 </motion.div>
               )}
               
-              {searchResults.length > 0 && (
-                <div className="bg-muted p-4 rounded-lg mt-4">
-                  <h3 className="font-medium mb-2">Search Results for "{searchQuery}"</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {searchResults.map((product, index) => (
-                      <Card key={index} className="p-3 hover:bg-accent cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          {product.image && (
-                            <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{product.name}</div>
-                            <div className="text-sm text-muted-foreground">${product.price}</div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
+              <div className="relative flex items-end bg-slate-800/50 backdrop-blur-md border border-slate-600/50 rounded-full overflow-hidden shadow-lg">
+                <textarea
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Add a message..."
+                  className="flex-1 bg-transparent border-none resize-none py-4 pl-6 pr-20 max-h-32 focus:outline-none text-slate-200 placeholder:text-slate-500"
+                  rows={1}
+                  disabled={loading}
+                  style={{ scrollbarWidth: 'none' }}
+                />
+                
+                <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`p-2 rounded-full ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-700'}`}
+                    disabled={loading}
+                  >
+                    <Paperclip className="h-5 w-5 text-slate-400" />
+                  </button>
+                  <button 
+                    type="submit" 
+                    className={`p-2 bg-[#9b87f5] rounded-full ${loading || (!inputMessage.trim() && !imageFile) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#7E69AB]'}`}
+                    disabled={loading || (!inputMessage.trim() && !imageFile)}
+                  >
+                    <Send className="h-5 w-5 text-slate-100" />
+                  </button>
                 </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+              </div>
+            </form>
+          </div>
         </main>
-
-        <div className="relative">
-          <ChatInput 
-            onSendMessage={handleSendMessage} 
-            onImageSearch={handleImageSearch}
-            loading={loading} 
-          />
-        </div>
       </div>
     </div>
   );

@@ -1,28 +1,22 @@
 
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import React from 'react';
+import { motion } from 'framer-motion';
 
 interface QuickPromptButtonProps {
   prompt: string;
   onClick: (prompt: string) => void;
 }
 
-const QuickPromptButton = ({ prompt, onClick }: QuickPromptButtonProps) => {
+const QuickPromptButton: React.FC<QuickPromptButtonProps> = ({ prompt, onClick }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+    <motion.button
       whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="p-3 border border-slate-700/60 rounded-xl text-left text-sm text-slate-300 hover:bg-slate-700/30 transition-colors bg-slate-800/50 backdrop-blur-md"
+      onClick={() => onClick(prompt)}
     >
-      <Button 
-        variant="outline" 
-        className="w-full text-left justify-start p-4 h-auto whitespace-normal hover:bg-gold/10 hover:text-gold transition-all shadow-sm border-gold/20"
-        onClick={() => onClick(prompt)}
-      >
-        {prompt}
-      </Button>
-    </motion.div>
+      {prompt}
+    </motion.button>
   );
 };
 

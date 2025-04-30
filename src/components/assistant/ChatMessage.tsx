@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { ChatMessage as ChatMessageType } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -7,6 +8,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ChatProductCard from './ChatProductCard';
 import ChatProductResponse from './ChatProductResponse';
+import { AnimatePresence, motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -31,22 +34,38 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   };
 
   return (
-    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-      <div className="flex flex-row items-start gap-2 max-w-[80%]">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 10 }}
+      transition={{ duration: 0.3 }}
+      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-6 px-2`}
+    >
+      <div className="flex flex-row items-start gap-3 max-w-[85%]">
         {message.role === 'assistant' && (
-          <Avatar>
-            <AvatarImage src="/assets/images/assistant-avatar.png" alt="Assistant Avatar" />
-            <AvatarFallback>AI</AvatarFallback>
+          <Avatar className="mt-0.5 border border-slate-600 bg-slate-700">
+            <AvatarImage src="/assets/images/assistant-avatar.png" alt="AI" />
+            <AvatarFallback className="bg-slate-700 text-slate-200">AI</AvatarFallback>
           </Avatar>
         )}
         <div className="flex flex-col text-sm w-full">
-          <div className={`px-4 py-2 rounded-lg ${message.role === 'user' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-gray-200'}`}>
+          <div
+            className={cn(
+              "px-4 py-3 rounded-2xl backdrop-blur-sm",
+              message.role === 'user'
+                ? "bg-gradient-to-br from-[#9b87f5] to-[#7E69AB] text-white"
+                : "bg-[#333333]/80 text-slate-100 dark:bg-slate-800/80"
+            )}
+          >
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                code({ node, inline, className, children, ...props }) {
-                  const match = (className || '').match(/language-(\w+)/);
-                  return !inline && match ? (
+                code({ node, className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  return !match ? (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  ) : (
                     <SyntaxHighlighter
                       style={dracula}
                       language={match[1]}
@@ -55,10 +74,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                     >
                       {String(children).replace(/\n$/, '')}
                     </SyntaxHighlighter>
-                  ) : (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
                   );
                 }
               }}
@@ -67,12 +82,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             </ReactMarkdown>
             {message.productIds && renderProductResponse(message.productIds)}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {new Date(message.timestamp).toLocaleTimeString()}
+          <div className="text-[11px] text-slate-400 mt-1 px-1">
+            {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
+        {message.role === 'user' && (
+          <Avatar className="mt-0.5 border border-slate-600 bg-slate-700">
+            <AvatarFallback className="bg-slate-700 text-slate-200">You</AvatarFallback>
+          </Avatar>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
