@@ -2,6 +2,7 @@ import { Toaster } from 'sonner';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import { WishlistProvider } from "./contexts/WishlistContext";
@@ -53,64 +54,66 @@ const queryClient = new QueryClient({
 });
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <CartProvider>
-        <WishlistProvider>
-          <ReviewProvider>
-            <TooltipProvider>
-              <Toaster closeButton={true} position="top-right" />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Layout />}>
-                    {/* Public Routes */}
-                    <Route index element={<HomePage />} />
-                    <Route path="products" element={<ProductsPage />} />
-                    <Route path="products/:id" element={<ProductDetailPage />} />
-                    <Route path="login" element={<LoginPage />} />
-                    <Route path="register" element={<RegisterPage />} />
-                    <Route path="seller/register" element={<SellerRegisterPage />} />
-                    <Route path="assistant" element={<AssistantPage />} />
-                    
-                    {/* User Routes */}
-                    <Route element={<ProtectedRoute />}>
-                      <Route path="profile" element={<ProfilePage />} />
-                      <Route path="orders" element={<OrdersPage />} />
-                      <Route path="orders/:id" element={<OrderDetailPage />} />
-                      <Route path="cart" element={<CartPage />} />
-                      <Route path="checkout" element={<CheckoutPage />} />
-                      <Route path="wishlist" element={<WishlistPage />} />
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <ReviewProvider>
+              <TooltipProvider>
+                <Toaster closeButton={true} position="top-right" />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Layout />}>
+                      {/* Public Routes */}
+                      <Route index element={<HomePage />} />
+                      <Route path="products" element={<ProductsPage />} />
+                      <Route path="products/:id" element={<ProductDetailPage />} />
+                      <Route path="login" element={<LoginPage />} />
+                      <Route path="register" element={<RegisterPage />} />
+                      <Route path="seller/register" element={<SellerRegisterPage />} />
+                      <Route path="assistant" element={<AssistantPage />} />
+                      
+                      {/* User Routes */}
+                      <Route element={<ProtectedRoute />}>
+                        <Route path="profile" element={<ProfilePage />} />
+                        <Route path="orders" element={<OrdersPage />} />
+                        <Route path="orders/:id" element={<OrderDetailPage />} />
+                        <Route path="cart" element={<CartPage />} />
+                        <Route path="checkout" element={<CheckoutPage />} />
+                        <Route path="wishlist" element={<WishlistPage />} />
+                      </Route>
+                      
+                      {/* Seller Routes */}
+                      <Route element={<RoleRoute allowedRoles={['seller', 'admin']} />}>
+                        <Route path="seller/dashboard" element={<SellerDashboardPage />} />
+                        <Route path="seller/products" element={<SellerProductsPage />} />
+                        <Route path="seller/products/add" element={<SellerAddProductPage />} />
+                        <Route path="seller/products/edit/:id" element={<SellerEditProductPage />} />
+                        <Route path="seller/orders" element={<SellerOrdersPage />} />
+                        <Route path="seller/analytics" element={<SellerAnalyticsPage />} />
+                      </Route>
+                      
+                      {/* Admin Routes */}
+                      <Route element={<RoleRoute allowedRoles={['admin']} />}>
+                        <Route path="admin/dashboard" element={<AdminDashboardPage />} />
+                        <Route path="admin/users" element={<AdminUsersPage />} />
+                        <Route path="admin/products" element={<AdminProductsPage />} />
+                        <Route path="admin/orders" element={<AdminOrdersPage />} />
+                        <Route path="admin/sellers" element={<AdminSellersPage />} />
+                      </Route>
+                      
+                      {/* 404 Not Found */}
+                      <Route path="*" element={<NotFound />} />
                     </Route>
-                    
-                    {/* Seller Routes */}
-                    <Route element={<RoleRoute allowedRoles={['seller', 'admin']} />}>
-                      <Route path="seller/dashboard" element={<SellerDashboardPage />} />
-                      <Route path="seller/products" element={<SellerProductsPage />} />
-                      <Route path="seller/products/add" element={<SellerAddProductPage />} />
-                      <Route path="seller/products/edit/:id" element={<SellerEditProductPage />} />
-                      <Route path="seller/orders" element={<SellerOrdersPage />} />
-                      <Route path="seller/analytics" element={<SellerAnalyticsPage />} />
-                    </Route>
-                    
-                    {/* Admin Routes */}
-                    <Route element={<RoleRoute allowedRoles={['admin']} />}>
-                      <Route path="admin/dashboard" element={<AdminDashboardPage />} />
-                      <Route path="admin/users" element={<AdminUsersPage />} />
-                      <Route path="admin/products" element={<AdminProductsPage />} />
-                      <Route path="admin/orders" element={<AdminOrdersPage />} />
-                      <Route path="admin/sellers" element={<AdminSellersPage />} />
-                    </Route>
-                    
-                    {/* 404 Not Found */}
-                    <Route path="*" element={<NotFound />} />
-                  </Route>
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </ReviewProvider>
-        </WishlistProvider>
-      </CartProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </ReviewProvider>
+          </WishlistProvider>
+        </CartProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 export default App;
