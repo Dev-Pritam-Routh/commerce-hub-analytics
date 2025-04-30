@@ -42,9 +42,9 @@ const ThemeToggle = () => {
       onClick={toggleTheme}
       className={cn(
         "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300",
-        "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700",
-        "text-slate-800 dark:text-slate-200", // Improved contrast here
-        "focus:outline-none focus:ring-2 focus:ring-gold dark:focus:ring-gold-light",
+        "bg-slate-800/50 hover:bg-slate-700 dark:bg-slate-700/50 dark:hover:bg-slate-600",
+        "text-slate-300 dark:text-slate-200",
+        "focus:outline-none focus:ring-2 focus:ring-[#9b87f5] dark:focus:ring-[#9b87f5]/70",
         "relative overflow-hidden"
       )}
       whileTap={{ scale: 0.95 }}
@@ -75,7 +75,7 @@ const ThemeToggle = () => {
         animate={{
           backgroundColor: isDark 
             ? "rgba(30, 41, 59, 0)" 
-            : "rgba(255, 215, 0, 0)",
+            : "rgba(156, 135, 245, 0)",
           scale: [1, 1.15, 1]
         }}
         transition={{

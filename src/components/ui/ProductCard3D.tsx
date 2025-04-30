@@ -75,7 +75,19 @@ const ProductCard3D: React.FC<ProductCardProps> = ({ product, className }) => {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart(product._id);
+    
+    // Create a CartProduct object from the product
+    const cartProduct = {
+      id: product._id,
+      name: product.name,
+      price: product.price,
+      image: product.images[0] || '/placeholder.svg',
+      quantity: 1,
+      stock: product.stock,
+      sellerId: typeof product.seller === 'string' ? product.seller : product.seller?._id
+    };
+    
+    addToCart(cartProduct);
     toast.success('Added to cart');
   };
 
