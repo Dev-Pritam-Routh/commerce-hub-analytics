@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProductById } from '@/services/productService';
@@ -8,7 +9,7 @@ import { ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import ReviewList from '@/components/ReviewList';
+import { ReviewList } from '@/components/ReviewList';
 import ReviewForm from '@/components/ReviewForm';
 import {
   Accordion,
@@ -16,13 +17,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { Slider } from "@/components/ui/slider"
-import { Calendar } from "@/components/ui/calendar"
-import { Input } from "@/components/ui/input"
-import { getProductReviews, Review } from '@/services/reviewService';
 import { Helmet } from 'react-helmet-async';
 
 const ProductDetailPage = () => {
@@ -38,9 +32,13 @@ const ProductDetailPage = () => {
 
   const handleAddToCart = () => {
     if (product) {
-    addToCart(product._id); // Make sure we're passing only the product ID
-    toast.success(`${product.name} added to cart`);
-  }
+      addToCart({
+        productId: product._id,
+        quantity: 1,
+        price: product.discountedPrice || product.price
+      });
+      toast.success(`${product.name} added to cart`);
+    }
   };
 
   if (isLoading) {

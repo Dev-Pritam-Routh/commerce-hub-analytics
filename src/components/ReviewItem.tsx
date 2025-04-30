@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,7 +6,6 @@ import { useReview } from '@/contexts/ReviewContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface ReviewItemProps {
   review: any;
@@ -28,21 +28,34 @@ const ReviewItem = ({ review }: ReviewItemProps) => {
     }
   };
 
+  // Check for the appropriate ID property from the user object in the review
+  const isReviewAuthor = isAuthenticated && 
+    user && 
+    review.userId && 
+    user._id === review.userId;
+
   return (
-    <div key={review._id} className="mb-4 p-4 rounded-md shadow-sm bg-white dark:bg-slate-800">
+    <div className="mb-4 p-4 rounded-md shadow-sm bg-white dark:bg-slate-800">
       <div className="flex items-start space-x-4">
         <Avatar>
-          {review.user.avatar ? (
+          {review.user && review.user.avatar ? (
             <AvatarImage src={review.user.avatar} alt={review.user.name} />
           ) : (
-            <AvatarFallback>{review.user.name.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>
+              {review.user && review.user.name ? 
+                review.user.name.charAt(0).toUpperCase() : 
+                'U'}
+            </AvatarFallback>
           )}
         </Avatar>
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <h5 className="font-medium text-slate-900 dark:text-slate-100">{review.user.name}</h5>
+            <h5 className="font-medium text-slate-900 dark:text-slate-100">
+              {review.user && review.user.name ? review.user.name : 'Unknown User'}
+            </h5>
             <span className="text-sm text-slate-500 dark:text-slate-400">
-              {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
+              {review.createdAt && 
+                formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
             </span>
           </div>
           <div className="flex items-center space-x-2 mb-2">
@@ -72,7 +85,7 @@ const ReviewItem = ({ review }: ReviewItemProps) => {
           <p className="text-slate-700 dark:text-slate-300">{review.comment}</p>
         </div>
       </div>
-      {isAuthenticated && user?._id === review.userId && (
+      {isReviewAuthor && (
         <div className="text-right mt-2">
           <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900" onClick={handleDelete}>
             <Trash2 className="w-4 h-4 mr-2" />

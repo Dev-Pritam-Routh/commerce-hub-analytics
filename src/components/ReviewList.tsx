@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { useReview } from '../contexts/ReviewContext';
 import { Button } from './ui/button';
 import { SelectWithOptions } from './ui/select-with-options';
-import { ReviewItem } from './ReviewItem';
+import ReviewItem from './ReviewItem';
 import { Skeleton } from './ui/skeleton';
 
 interface ReviewListProps {

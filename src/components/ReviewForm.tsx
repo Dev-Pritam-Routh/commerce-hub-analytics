@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useReview } from '@/contexts/ReviewContext';
 import { Button } from './ui/button';
@@ -21,6 +22,12 @@ const ReviewForm = ({ productId, onClose }: ReviewFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (rating === 0) {
+      toast.error('Please select a rating');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -28,11 +35,10 @@ const ReviewForm = ({ productId, onClose }: ReviewFormProps) => {
         productId,
         rating,
         comment,
-        userId: '', // This will be filled by the backend
+        product: productId,
+        verifiedPurchase: false,
+        helpfulVotes: 0,
         updatedAt: new Date().toISOString(),
-        product: productId, // Add missing property
-        verifiedPurchase: false, // Add missing property
-        helpfulVotes: 0 // Add missing property
       });
 
       toast.success('Review submitted successfully!');
@@ -49,7 +55,12 @@ const ReviewForm = ({ productId, onClose }: ReviewFormProps) => {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
         <Label htmlFor="rating">Rating</Label>
-        <Rating style={{ maxWidth: 200 }} value={rating} onChange={setRating} />
+        <Rating 
+          style={{ maxWidth: 200 }} 
+          value={rating} 
+          onChange={setRating}
+          className="my-2"
+        />
       </div>
       <div>
         <Label htmlFor="comment">Comment</Label>
