@@ -5,9 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { getProductById } from '@/services/productService';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
+import { useWishlist } from '@/contexts/WishlistContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ReviewList } from '@/components/ReviewList';
 import ReviewForm from '@/components/ReviewForm';
@@ -22,6 +23,7 @@ import { Helmet } from 'react-helmet-async';
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
+  const { addToWishlist, isInWishlist } = useWishlist();
   const [isReviewFormOpen, setIsReviewFormOpen] = useState(false);
 
   const { data: product, isLoading, isError } = useQuery<Product>({
@@ -33,11 +35,20 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     if (product) {
       addToCart({
-        productId: product._id,
+        id: product._id,
         quantity: 1,
-        price: product.discountedPrice || product.price
+        price: product.discountedPrice || product.price,
+        name: product.name,
+        image: product.images[0] || '/placeholder.svg'
       });
       toast.success(`${product.name} added to cart`);
+    }
+  };
+
+  const handleAddToWishlist = () => {
+    if (product) {
+      addToWishlist(product._id);
+      toast.success(`${product.name} added to wishlist`);
     }
   };
 
@@ -64,6 +75,8 @@ const ProductDetailPage = () => {
       </div>
     );
   }
+
+  const productIsInWishlist = isInWishlist(product._id);
 
   return (
     <div className="container mx-auto py-12">
@@ -103,7 +116,7 @@ const ProductDetailPage = () => {
             )}
           </div>
           <p className="text-gray-700 mb-6">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            {product.description || "No description available."}
           </p>
 
           <div className="flex flex-col gap-4 mb-6">
@@ -111,8 +124,9 @@ const ProductDetailPage = () => {
               <ShoppingCart className="mr-2 h-4 w-4" />
               Add to Cart
             </Button>
-            <Button variant="outline" className="w-full">
-              Add to Wishlist
+            <Button variant="outline" onClick={handleAddToWishlist} className="w-full">
+              <Heart className="mr-2 h-4 w-4" />
+              {productIsInWishlist ? 'Added to Wishlist' : 'Add to Wishlist'}
             </Button>
           </div>
 
@@ -121,7 +135,7 @@ const ProductDetailPage = () => {
             <AccordionItem value="description">
               <AccordionTrigger>Description</AccordionTrigger>
               <AccordionContent>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                {product.description || "No detailed description available."}
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="details">

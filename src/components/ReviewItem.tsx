@@ -32,7 +32,7 @@ const ReviewItem = ({ review }: ReviewItemProps) => {
   const isReviewAuthor = isAuthenticated && 
     user && 
     review.userId && 
-    user._id === review.userId;
+    user.id === review.userId;
 
   return (
     <div className="mb-4 p-4 rounded-md shadow-sm bg-white dark:bg-slate-800">

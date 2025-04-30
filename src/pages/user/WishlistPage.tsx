@@ -1,6 +1,7 @@
+
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWishlist, removeFromWishlist } from '@/services/wishlistService';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Helmet } from 'react-helmet-async';
 const WishlistPage = () => {
   const { user, isAuthenticated } = useAuth();
   const { addToCart } = useCart();
+  const queryClient = useQueryClient();
 
   const { data: wishlist, isLoading, isError, refetch } = useQuery<{ products: Product[] }>({
     queryKey: ['wishlist'],
@@ -27,10 +29,11 @@ const WishlistPage = () => {
     }
   }, [isAuthenticated, user, refetch]);
 
-  const removeMutation = useMutation(removeFromWishlist, {
+  const removeMutation = useMutation({
+    mutationFn: (productId: string) => removeFromWishlist(productId),
     onSuccess: () => {
       toast.success('Product removed from wishlist');
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
     },
     onError: (error: any) => {
       toast.error(error?.message || 'Failed to remove product from wishlist');
@@ -43,9 +46,11 @@ const WishlistPage = () => {
 
   const handleAddToCart = (product: Product) => {
     addToCart({
-      productId: product._id,
+      id: product._id,
       quantity: 1,
-      price: product.discountedPrice || product.price
+      price: product.discountedPrice || product.price,
+      name: product.name,
+      image: product.images[0] || '/placeholder.svg'
     });
     toast.success(`${product.name} added to cart`);
   };
@@ -82,7 +87,10 @@ const WishlistPage = () => {
           <p className="text-gray-600">
             Failed to load your wishlist. Please try again later.
           </p>
-          <button onClick={refetch} className="text-blue-500 hover:underline mt-2 block">
+          <button 
+            onClick={() => refetch()} 
+            className="text-blue-500 hover:underline mt-2 block"
+          >
             Retry
           </button>
         </div>
