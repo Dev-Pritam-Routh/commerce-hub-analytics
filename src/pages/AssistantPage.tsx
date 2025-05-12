@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Avatar } from '@/components/ui/avatar';
@@ -64,6 +63,7 @@ interface Message {
 interface ChatSessionResponse {
   session_id: string;
   message: string;
+  session_name?: string;
 }
 
 interface ChatHistoryResponse {
@@ -73,6 +73,14 @@ interface ChatHistoryResponse {
 interface ChatSession {
   id: string;
   title: string;
+  timestamp: string;
+  lastMessage?: string;
+}
+
+interface BackendSession {
+  session_id: string;
+  title?: string;
+  session_name?: string;
   timestamp: string;
 }
 
@@ -120,15 +128,16 @@ const AssistantPage = () => {
         params: { user_id: user?.id || 'guest' }
       });
 
-      if (response.data && response.data.sessions) {
+      if (response.data?.sessions) {
         // Sort sessions by timestamp (newest first)
-        const sortedSessions = response.data.sessions.sort((a: any, b: any) => 
+        const sortedSessions = response.data.sessions.sort((a: BackendSession, b: BackendSession) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         
-        setChatSessions(sortedSessions.map((session: any) => ({
+        // Map sessions and ensure session_name is prioritized
+        setChatSessions(sortedSessions.map((session: BackendSession) => ({
           id: session.session_id,
-          title: session.title || "New Conversation",
+          title: session.session_name || "New Conversation", // Prioritize session_name
           timestamp: session.timestamp,
         })));
 
@@ -156,37 +165,38 @@ const AssistantPage = () => {
         user_email: user?.email || undefined
       });
 
-      if (response.data && response.data.session_id) {
-        setSessionId(response.data.session_id);
+      if (response.data?.session_id) {
+        const sessionId = response.data.session_id;
+        setSessionId(sessionId);
         
-        // Add the new session to the list
+        // Add the new session to the list with the correct name
         const newSession: ChatSession = {
-          id: response.data.session_id,
-          title: "New Conversation",
+          id: sessionId,
+          title: response.data.session_name || "New Conversation",
           timestamp: new Date().toISOString()
         };
+        
+        // Update sessions list immediately
         setChatSessions(prev => [newSession, ...prev]);
         
-        // Set the welcome message
-        setMessages([
-          {
+        // Set the welcome message from the backend response
+        if (response.data.message && response.data.message.trim()) {
+          setMessages([{
             role: 'assistant',
-            content: response.data.message || 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.',
+            content: response.data.message,
             timestamp: new Date().toISOString()
-          }
-        ]);
+          }]);
+        } else {
+          setMessages([]);
+        }
+
+        // Refresh the sessions list from the backend
+        await loadSessions();
       }
     } catch (error) {
       console.error('Error creating chat session:', error);
       toast.error('Failed to connect to the assistant. Please try again later.');
-      // Set default welcome message even if API fails
-      setMessages([
-        {
-          role: 'assistant',
-          content: 'Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations. (Note: I\'m currently in demo mode)',
-          timestamp: new Date().toISOString()
-        }
-      ]);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -274,7 +284,7 @@ const AssistantPage = () => {
         // Add assistant message
         const assistantMessage: Message = {
           role: 'assistant',
-          content: `I found ${responseData.products.length} products similar to your image.`,
+          content: responseData.message || '',
           timestamp: new Date().toISOString(),
           type: 'product_search'
         };
@@ -299,7 +309,7 @@ const AssistantPage = () => {
         // No products found case
         const noProductsMessage: Message = {
           role: 'assistant',
-          content: 'Sorry, I couldn\'t find any products matching this image.',
+          content: responseData.message || '',
           timestamp: new Date().toISOString()
         };
         
@@ -313,7 +323,7 @@ const AssistantPage = () => {
       // Add error message to chat
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error while searching for products similar to your image.',
+        content: responseData?.message || '',
         timestamp: new Date().toISOString()
       };
       
@@ -333,19 +343,26 @@ const AssistantPage = () => {
       setLoading(true);
       const response = await axios.get<ChatHistoryResponse>(`${API_URL}/chat/history?session_id=${sessionId}&limit=50`);
       
-      if (response.data && response.data.messages) {
-        // Map messages to the local format
-        const formattedMessages = response.data.messages.map((msg) => ({
-          role: msg.role as 'assistant' | 'user',
-          content: msg.content,
-          timestamp: msg.timestamp
-        }));
+      if (response.data?.messages) {
+        // Map messages to the local format and filter out empty/blank messages
+        const formattedMessages = response.data.messages
+          .map((msg) => ({
+            role: msg.role as 'assistant' | 'user',
+            content: msg.content,
+            timestamp: msg.timestamp,
+            type: msg.type,
+            productId: msg.productId
+          }))
+          .filter(msg => msg.content && msg.content.trim().length > 0);
         
         setMessages(formattedMessages);
+      } else {
+        setMessages([]);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
       toast.error('Failed to load chat history. Please try again.');
+      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -650,9 +667,6 @@ const AssistantPage = () => {
                     <MessageCircle className="h-8 w-8 text-[#9b87f5]" />
                   </Avatar>
                   <h2 className="text-2xl font-bold text-slate-200 mb-3">Shopping Assistant</h2>
-                  <p className="text-slate-400 mb-8">
-                    Welcome to your premium shopping assistant. Ask me anything about products, pricing, or recommendations.
-                  </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {quickPrompts.map((prompt, index) => (
                       <QuickPromptButton 

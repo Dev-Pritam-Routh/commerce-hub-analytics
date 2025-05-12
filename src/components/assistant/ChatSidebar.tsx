@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Plus, MessageCircle, RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
@@ -30,31 +29,46 @@ interface ConversationProps {
   onClick: () => void;
 }
 
-const ConversationItem = ({ title, date, isActive, onClick }: ConversationProps) => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    whileHover={{ scale: 1.01 }}
-    className={`p-3 rounded-md cursor-pointer mb-1.5 transition-colors ${
-      isActive
-        ? "bg-[#9b87f5]/20 dark:bg-[#9b87f5]/20 border border-[#9b87f5]/30"
-        : "hover:bg-slate-800/50"
-    }`}
-    onClick={onClick}
-  >
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <MessageCircle className={`h-4 w-4 ${isActive ? 'text-[#9b87f5]' : 'text-slate-400'}`} />
-        <span className={`font-medium truncate ${isActive ? 'text-slate-200' : 'text-slate-400'}`}>
-          {title}
+const ConversationItem = ({ title, date, isActive, onClick }: ConversationProps) => {
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+      return format(date, "MMM d");
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      whileHover={{ scale: 1.01 }}
+      className={`p-3 rounded-md cursor-pointer mb-1.5 transition-colors ${
+        isActive
+          ? "bg-[#9b87f5]/20 dark:bg-[#9b87f5]/20 border border-[#9b87f5]/30"
+          : "hover:bg-slate-800/50"
+      }`}
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MessageCircle className={`h-4 w-4 ${isActive ? 'text-[#9b87f5]' : 'text-slate-400'}`} />
+          <span className={`font-medium truncate ${isActive ? 'text-slate-200' : 'text-slate-400'}`}>
+            {title}
+          </span>
+        </div>
+        <span className="text-xs text-slate-500">
+          {formatDate(date)}
         </span>
       </div>
-      <span className="text-xs text-slate-500">
-        {format(new Date(date), "MMM d")}
-      </span>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onNewChat,

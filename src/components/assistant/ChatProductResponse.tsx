@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import ChatProductCard from './ChatProductCard';
@@ -60,10 +59,12 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
         .filter(result => result.status === 'fulfilled' && result.value !== null)
         .map(result => (result as PromiseFulfilledResult<ProductData>).value);
       
-      console.log("Successfully fetched products:", validProducts.length);
+      console.log("Successfully fetched products:", validProducts);
       return validProducts;
     },
-    enabled
+    enabled,
+    retry: 2, // Retry failed requests twice
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   // Don't render anything if no product IDs provided
@@ -95,11 +96,11 @@ const ChatProductResponse = ({ productIds }: ChatProductResponseProps) => {
       transition={{ duration: 0.5, staggerChildren: 0.1 }}
       className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 w-full"
     >
-      {products.map((product, index) => (
+      {products.map((product) => (
         <ChatProductCard
           key={product._id}
           product={product}
-          delay={index * 0.1}
+          delay={0.1}
         />
       ))}
     </motion.div>

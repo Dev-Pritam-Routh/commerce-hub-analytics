@@ -10,7 +10,7 @@ const app = express();
 
 // Enable CORS for all routes
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:8080', 'https://commerce-hub-analytics.vercel.app'], // Replace with your frontend's origin
+  origin: ['http://localhost:5173', 'http://localhost:8080', 'https://commerce-hub-analytics.vercel.app', 'https://preview--commerce-hub-analytics.lovable.app/'], // Replace with your frontend's origin
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true, // Allow cookies to be sent cross-origin
 }));
