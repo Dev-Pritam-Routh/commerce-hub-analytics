@@ -57,9 +57,14 @@ const Header = () => {
         <nav className="hidden md:flex items-center space-x-8">
           <Link to="/" className="nav-link font-medium text-slate-900 dark:text-white">Home</Link>
           <Link to="/products" className="nav-link font-medium text-slate-900 dark:text-white">Products</Link>
-          <Link to="/assistant" className="nav-link font-medium text-slate-900 dark:text-white">
+          <a
+            href="/assistant"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="nav-link font-medium text-slate-900 dark:text-white"
+          >
             Assistant
-          </Link>
+          </a>
           {isAuthenticated && <Link to="/orders" className="nav-link font-medium text-slate-900 dark:text-white">Orders</Link>}
         </nav>
 
@@ -265,10 +270,16 @@ const Header = () => {
                 <ShoppingBag className="inline-block h-5 w-5 mr-2" />
                 Products
               </Link>
-              <Link to="/assistant" className="text-xl font-medium text-slate-900 dark:text-white" onClick={() => setIsMenuOpen(false)}>
-              <Bot className="inline-block h-5 w-5 mr-2" />
+              <a
+                href="/assistant"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xl font-medium text-slate-900 dark:text-white flex items-center"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Bot className="inline-block h-5 w-5 mr-2" />
                 Assistant
-              </Link>
+              </a>
               
               {isAuthenticated ? (
                 <>

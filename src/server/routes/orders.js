@@ -211,7 +211,7 @@ router.get('/seller/orders', auth, async (req, res) => {
     // Filter orders to only include those with products from this seller
     const sellerOrders = orders.filter(order => {
       return order.products.some(item => {
-        return item.product.seller && item.product.seller.toString() === req.user.userId;
+        return item.product && item.product.seller && item.product.seller.toString() === req.user.userId;
       });
     });
     
