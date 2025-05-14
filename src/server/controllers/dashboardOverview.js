@@ -1,13 +1,14 @@
 
 import User from '../models/User.js';
 import Order from '../models/Order.js';
-import { isValidCache, updateCache } from '../utils/cache.js';
+import { isValidCache, updateCache, getCacheData } from '../utils/cache.js';
 
 export const getDashboardOverview = async (req, res) => {
   try {
     // Check cache first
-    if (isValidCache('overview')) {
-      return res.json(cache.overview.data);
+    const cachedOverview = getCacheData('overview');
+    if (cachedOverview) {
+      return res.json(cachedOverview);
     }
     
     // Calculate dashboard overview data

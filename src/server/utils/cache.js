@@ -33,3 +33,20 @@ export const clearCache = (key) => {
     });
   }
 };
+
+export const getCacheData = (key) => {
+  if (isValidCache(key)) {
+    return cache[key].data;
+  }
+  return null;
+};
+ for a given key if it exists and is valid.
+ * @param {string} key
+ * @returns {*} Cached data or null if not present/expired
+ */
+export const getCacheData = (key) => {
+  if (isValidCache(key)) {
+    return cache[key].data;
+  }
+  return null;
+};
