@@ -237,8 +237,8 @@ const ProductsPage = () => {
                   className="mb-4"
                 />
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm">${priceRange[0]}</span>
-                  <span className="text-sm">${priceRange[1]}</span>
+                  <span className="text-sm">₹{priceRange[0]}</span>
+                  <span className="text-sm">₹{priceRange[1]}</span>
                 </div>
                 <Button 
                   variant="outline" 
@@ -331,8 +331,8 @@ const ProductsPage = () => {
                         className="mb-4"
                       />
                       <div className="flex items-center justify-between mb-4">
-                        <span className="text-sm">${priceRange[0]}</span>
-                        <span className="text-sm">${priceRange[1]}</span>
+                        <span className="text-sm">₹{priceRange[0]}</span>
+                        <span className="text-sm">₹{priceRange[1]}</span>
                       </div>
                       <Button 
                         variant="outline" 
@@ -437,7 +437,7 @@ const ProductsPage = () => {
                 
                 {(minPrice !== undefined || maxPrice !== undefined) && (
                   <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center">
-                    Price: ${minPrice || 0} - ${maxPrice || 2000}
+                    Price: ₹{minPrice || 0} - ₹{maxPrice || 2000}
                     <Button 
                       variant="ghost" 
                       size="icon" 

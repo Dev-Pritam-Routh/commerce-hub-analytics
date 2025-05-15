@@ -121,11 +121,11 @@ const ProductCard3D: React.FC<ProductCardProps> = ({ product, className }) => {
           <h3 className="font-medium text-lg mb-1 truncate">{product.name}</h3>
           <div className="flex items-baseline gap-2 mb-2">
             <span className="font-bold text-lg">
-              ${product.discountedPrice || product.price}
+              ₹{product.discountedPrice || product.price}
             </span>
             {product.discountedPrice && (
               <span className="text-sm text-slate-500 line-through">
-                ${product.price}
+                ₹{product.price}
               </span>
             )}
           </div>

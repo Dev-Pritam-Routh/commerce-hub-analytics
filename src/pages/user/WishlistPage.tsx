@@ -141,10 +141,10 @@ const WishlistPage = () => {
               </Link>
               <div className="flex items-center gap-2 mb-3">
                 <span className="font-bold text-xl">
-                  ${product.discountedPrice || product.price}
+                  ₹{product.discountedPrice || product.price}
                 </span>
                 {product.discountedPrice && (
-                  <span className="text-gray-500 line-through">${product.price}</span>
+                  <span className="text-gray-500 line-through">₹{product.price}</span>
                 )}
               </div>
               <div className="flex gap-2">

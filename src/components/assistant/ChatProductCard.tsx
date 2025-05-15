@@ -127,11 +127,11 @@ const ChatProductCard = ({ product, delay = 0 }: ChatProductCardProps) => {
           className="flex items-baseline mb-2"
         >
           <span className="text-2xl font-bold text-gold">
-            ${(product.discountedPrice || product.price).toFixed(2)}
+            ₹{(product.discountedPrice || product.price).toFixed(2)}
           </span>
           {discount > 0 && (
             <span className="ml-2 text-gray-500 line-through">
-              ${product.price.toFixed(2)}
+              ₹{product.price.toFixed(2)}
             </span>
           )}
         </motion.div>

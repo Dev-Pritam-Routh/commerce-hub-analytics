@@ -192,7 +192,7 @@ const AdminProductsPage = () => {
                     {product.seller?.name || 'Unknown Seller'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">{product.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">${product.price?.toFixed(2) || '0.00'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">₹{product.price?.toFixed(2) || '0.00'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">{product.stock || 0}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs rounded-full ${

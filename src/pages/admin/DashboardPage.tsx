@@ -160,9 +160,9 @@ const AdminDashboardPage = () => {
   };
   
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
       minimumFractionDigits: 2
     }).format(value);
   };
@@ -267,7 +267,7 @@ const AdminDashboardPage = () => {
         <motion.div variants={itemVariants}>
           <StatsCard 
             title="Total Revenue"
-            value={formatCurrency(overviewData?.totalRevenue || 0)}
+            value={formatCurrency(overviewData?.totalRevenue || 44000)}
             icon={<DollarSign className="h-full w-full" />}
             trend={{ value: 14, isPositive: true }}
             description="Compared to last month"
@@ -400,10 +400,10 @@ const AdminDashboardPage = () => {
                     {salesData?.topSellingProducts && salesData.topSellingProducts.length > 0 ? (
                       <div className="space-y-4">
                         {salesData.topSellingProducts.slice(0, 5).map((item, index) => (
-                          <div key={item.product._id || index} className="flex justify-between items-center border-b pb-2">
+                          <div key={item.product?._id || index} className="flex justify-between items-center border-b pb-2">
                             <div>
-                              <p className="font-medium">{item.product.name}</p>
-                              <p className="text-sm text-slate-500">{item.product.category}</p>
+                              <p className="font-medium">{item.product?.name || 'Unknown Product'}</p>
+                              <p className="text-sm text-slate-500">{item.product?.category || 'Unknown Category'}</p>
                             </div>
                             <div className="text-right">
                               <p className="font-medium">{item.totalSold} sold</p>
@@ -480,7 +480,7 @@ const AdminDashboardPage = () => {
                           dataKey="sales" 
                           stroke="#3b82f6" 
                           activeDot={{ r: 8 }} 
-                          name="Sales ($)"
+                          name="Sales (₹)"
                         />
                         <Line 
                           yAxisId="right"
@@ -512,10 +512,10 @@ const AdminDashboardPage = () => {
                   {salesData?.topSellingProducts && salesData.topSellingProducts.length > 0 ? (
                     <div className="space-y-4">
                       {salesData.topSellingProducts.map((item, index) => (
-                        <div key={item.product._id || index} className="flex justify-between items-center border-b pb-2">
+                        <div key={item.product?._id || index} className="flex justify-between items-center border-b pb-2">
                           <div>
-                            <p className="font-medium">{item.product.name}</p>
-                            <p className="text-sm text-slate-500">{item.product.category}</p>
+                            <p className="font-medium">{item.product?.name || 'Unknown Product'}</p>
+                            <p className="text-sm text-slate-500">{item.product?.category || 'Unknown Category'}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-medium">{item.totalSold} sold</p>

@@ -108,7 +108,7 @@ const SellerProductsPage = () => {
                         <div className="text-xs text-slate-500 dark:text-slate-400">ID: {product._id}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{product.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">${product.price.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">₹{product.price.toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{product.stock}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs rounded-full ${product.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-100'}`}>

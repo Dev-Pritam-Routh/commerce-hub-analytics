@@ -137,11 +137,11 @@ const OrderDetailPage = () => {
                         )}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {item.quantity} x ${item.price.toFixed(2)}
+                        {item.quantity} x ₹{item.price.toFixed(2)}
                       </div>
                     </div>
                     <div className="text-right font-medium">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ₹{(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -207,15 +207,15 @@ const OrderDetailPage = () => {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${(order.totalPrice - order.taxPrice - order.shippingPrice).toFixed(2)}</span>
+                  <span>₹{(order.totalPrice - order.taxPrice - order.shippingPrice).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping</span>
-                  <span>${order.shippingPrice.toFixed(2)}</span>
+                  <span>₹{order.shippingPrice.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax</span>
-                  <span>${order.taxPrice.toFixed(2)}</span>
+                  <span>₹{order.taxPrice.toFixed(2)}</span>
                 </div>
               </div>
               
@@ -223,7 +223,7 @@ const OrderDetailPage = () => {
               
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>${order.totalPrice.toFixed(2)}</span>
+                <span>₹{order.totalPrice.toFixed(2)}</span>
               </div>
             </CardContent>
           </Card>

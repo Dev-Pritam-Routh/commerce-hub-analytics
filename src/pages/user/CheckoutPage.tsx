@@ -373,25 +373,25 @@ const CheckoutPage = () => {
                   {cart.map((item) => (
                     <div key={item.id} className="flex justify-between mb-2">
                       <span>{item.name} x {item.quantity}</span>
-                      <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      <span>₹{(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-between mb-2">
                   <span>Subtotal</span>
-                  <span>${calculateSubtotal().toFixed(2)}</span>
+                  <span>₹{calculateSubtotal().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span>Tax (8%)</span>
-                  <span>${calculateTax().toFixed(2)}</span>
+                  <span>₹{calculateTax().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span>Shipping</span>
-                  <span>${calculateShipping().toFixed(2)}</span>
+                  <span>₹{calculateShipping().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-semibold mb-4 border-t pt-2">
                   <span>Total</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
+                  <span>₹{calculateTotal().toFixed(2)}</span>
                 </div>
                 <Button className="w-full" type="submit" disabled={isSubmitting}>
                   {isSubmitting ? <LoadingSpinner size="sm" /> : 'Place Order'}

@@ -192,7 +192,7 @@ const SellerEditProductPage = () => {
               
               <div className="space-y-2">
                 <label className="block text-sm font-medium">
-                  Price ($) <span className="text-red-500">*</span>
+                  Price (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"

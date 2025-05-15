@@ -45,7 +45,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-primary" />
         </div>
         <p className="text-2xl font-bold text-gold mb-2">
-          ${product.price.toFixed(2)}
+          ₹{product.price.toFixed(2)}
         </p>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
           {product.category}

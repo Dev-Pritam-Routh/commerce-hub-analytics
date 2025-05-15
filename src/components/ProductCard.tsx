@@ -144,7 +144,7 @@ const ProductCard = ({
             <h3 className="font-medium text-slate-900 dark:text-white truncate">{name}</h3>
           </Link>
           <span className="font-semibold text-gold-dark dark:text-gold-light">
-            ${price.toFixed(2)}
+            ₹{price.toFixed(2)}
           </span>
         </div>
         

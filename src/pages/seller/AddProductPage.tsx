@@ -122,7 +122,7 @@ const SellerAddProductPage = () => {
               
               <div className="space-y-2">
                 <label className="block text-sm font-medium">
-                  Price ($) <span className="text-red-500">*</span>
+                  Price (₹) <span className="text-red-500">*</span>
                 </label>
                 <input type="number" name="price" value={product.price} onChange={handleChange} min="0" step="0.01" required className="w-full p-2 border rounded-md bg-gray-600" />
               </div>
