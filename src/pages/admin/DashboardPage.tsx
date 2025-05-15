@@ -22,7 +22,8 @@ import {
   UserPlus,
   AlertTriangle,
   BarChart4,
-  RefreshCcw
+  RefreshCcw,
+  IndianRupee
 } from 'lucide-react';
 import {
   LineChart,
@@ -53,6 +54,15 @@ import {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFEAA7', '#FF6B6B'];
 
+const getLastThreeMonthsData = (data: any[]) => {
+  if (!data) return [];
+  const now = new Date();
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1); // Start of 3 months ago
+  return data.filter((item) => {
+    const itemDate = new Date(item.date);
+    return itemDate >= threeMonthsAgo;
+  });
+};
 const AdminDashboardPage = () => {
   const { user, token } = useAuth();
   const [isLoaded, setIsLoaded] = useState(false);
@@ -166,6 +176,8 @@ const AdminDashboardPage = () => {
       minimumFractionDigits: 2
     }).format(value);
   };
+
+  const salesTrendsLast3Months = getLastThreeMonthsData(salesData?.salesTrends);
   
   // Show loading state for the entire dashboard
   if (isOverviewLoading && isSalesLoading && isUsersLoading && isInventoryLoading) {
@@ -267,8 +279,8 @@ const AdminDashboardPage = () => {
         <motion.div variants={itemVariants}>
           <StatsCard 
             title="Total Revenue"
-            value={formatCurrency(overviewData?.totalRevenue || 44000)}
-            icon={<DollarSign className="h-full w-full" />}
+            value={formatCurrency(overviewData?.totalRevenue || 44926.92)}
+            icon={<IndianRupee className="h-full w-full" />}
             trend={{ value: 14, isPositive: true }}
             description="Compared to last month"
           />
@@ -313,45 +325,45 @@ const AdminDashboardPage = () => {
           >
             <motion.div variants={itemVariants} className="lg:col-span-2">
               <Card>
-                <CardHeader>
-                  <CardTitle>Sales Overview</CardTitle>
-                  <CardDescription>Recent sales performance</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    {salesData?.salesTrends && salesData.salesTrends.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart
-                          data={salesData.salesTrends}
-                          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                        >
-                          <defs>
-                            <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="date" />
-                          <YAxis />
-                          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                          <Area 
-                            type="monotone" 
-                            dataKey="sales" 
-                            stroke="#3b82f6" 
-                            fillOpacity={1} 
-                            fill="url(#colorSales)" 
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center">
-                        <p className="text-slate-500">No sales data available</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <CardHeader>
+                <CardTitle>Sales Overview</CardTitle>
+                <CardDescription>Recent sales performance (last 3 months)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  {salesTrendsLast3Months && salesTrendsLast3Months.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={salesTrendsLast3Months}
+                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="sales" 
+                          stroke="#3b82f6" 
+                          fillOpacity={1} 
+                          fill="url(#colorSales)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-slate-500">No sales data available</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
             </motion.div>
             
             <motion.div variants={itemVariants}>
